@@ -31,7 +31,7 @@ export const getToken = () => {
  */
 export const getUser = () => {
   const userData = Cookies.get(USER_COOKIE);
-  return userData ? JSON.parse(userData) : null;
+  return userData;
 };
 
 /**
