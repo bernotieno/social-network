@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bernaotieno/social-network/backend/pkg/auth"
 	"github.com/bernaotieno/social-network/backend/pkg/db/sqlite"
 	"github.com/bernaotieno/social-network/backend/pkg/handlers"
 	"github.com/bernaotieno/social-network/backend/pkg/middleware"
@@ -39,6 +40,10 @@ func main() {
 	}
 	log.Println("Migrations completed successfully")
 
+	// Initialize auth package with a secret key
+	// In production, this should be a secure random key stored in environment variables
+	auth.Initialize([]byte("your-secret-key-here"))
+
 	// Initialize WebSocket hub
 	hub := websocket.NewHub()
 	go hub.Run()
@@ -58,9 +63,9 @@ func main() {
 	// Register routes
 	registerRoutes(r, h)
 	// Handle all OPTIONS requests so CORS middleware runs
-r.PathPrefix("/").Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-    w.WriteHeader(http.StatusOK)
-})
+	r.PathPrefix("/").Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 
 	// Create server
 	srv := &http.Server{
@@ -70,8 +75,6 @@ r.PathPrefix("/").Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWr
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
-
-
 
 	// Start server in a goroutine
 	go func() {
@@ -86,7 +89,6 @@ r.PathPrefix("/").Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWr
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Server shutting down...")
-
 	// Create a deadline for server shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
