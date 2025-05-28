@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 
@@ -33,6 +34,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		utils.RespondWithError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
+	log.Println("register request:", req)
 
 	// Validate request
 	if req.Username == "" || req.Email == "" || req.Password == "" || req.FullName == "" {
@@ -54,6 +56,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 	// Check if user already exists
 	exists, err := h.UserService.UserExists(req.Email, req.Username)
+	log.Println("user exist", exists)
 	if err != nil {
 		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to check user existence")
 		return
@@ -98,6 +101,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		utils.RespondWithError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
+	log.Println("login request:", req)
 
 	// Validate request
 	if req.Email == "" || req.Password == "" {
