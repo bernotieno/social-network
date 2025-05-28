@@ -2,11 +2,11 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  setAuth, 
-  getUser, 
-  getToken, 
-  logout as logoutAuth, 
+import {
+  setAuth,
+  getUser,
+  getToken,
+  logout as logoutAuth,
   isAuthenticated as checkAuth,
   updateUserData as updateStoredUserData
 } from '@/utils/auth';
@@ -50,19 +50,25 @@ export const AuthProvider = ({ children }) => {
     try {
       setIsLoading(true);
       const response = await authAPI.login(email, password);
-      const { token, user } = response.data;
-      
+      console.log('Login response:', response.data);
+      const { token, user } = await response.data.data;
+
+      console.log(">>>",response.data.data.token);
+      console.log('Extracted token:', token);
+      console.log('Extracted user:', user);
+
       setAuth(token, user);
       setUser(user);
-      
-      // Initialize socket connection
-      initializeSocket();
-      
+
+      // Initialize socket connection with the token
+      initializeSocket(token);
+
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error.response?.data?.message || 'Login failed' 
+      console.error('Login error:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Login failed'
       };
     } finally {
       setIsLoading(false);
@@ -75,18 +81,18 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       const response = await authAPI.register(userData);
       const { token, user } = response.data;
-      
+
       setAuth(token, user);
       setUser(user);
-      
-      // Initialize socket connection
-      initializeSocket();
-      
+
+      // Initialize socket connection with the token
+      initializeSocket(token);
+
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error.response?.data?.message || 'Registration failed' 
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Registration failed'
       };
     } finally {
       setIsLoading(false);
@@ -105,11 +111,11 @@ export const AuthProvider = ({ children }) => {
     } finally {
       // Disconnect socket
       disconnectSocket();
-      
+
       // Clear auth data
       logoutAuth();
       setUser(null);
-      
+
       // Redirect to login page
       router.push('/auth/login');
     }
