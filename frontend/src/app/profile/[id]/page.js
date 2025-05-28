@@ -11,7 +11,7 @@ import styles from '@/styles/Profile.module.css';
 
 export default function ProfilePage() {
   const { id } = useParams();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, updateUserData } = useAuth();
   
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -20,6 +20,13 @@ export default function ProfilePage() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    fullName: '',
+    bio: '',
+    isPrivate: false
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const isOwnProfile = currentUser?.id === id;
 
@@ -27,13 +34,23 @@ export default function ProfilePage() {
     fetchProfileData();
   }, [id]);
 
+  useEffect(() => {
+    if (profile) {
+      setEditFormData({
+        fullName: profile.fullName || '',
+        bio: profile.bio || '',
+        isPrivate: profile.isPrivate || false
+      });
+    }
+  }, [profile]);
+
   const fetchProfileData = async () => {
     try {
       setIsLoading(true);
       
       // Fetch user profile
       const profileResponse = await userAPI.getProfile(id);
-      setProfile(profileResponse.data);
+      setProfile(profileResponse.data.data);
       
       // Check if current user is following this profile
       if (currentUser && !isOwnProfile) {
@@ -41,8 +58,8 @@ export default function ProfilePage() {
       }
       
       // Set followers and following counts
-      setFollowersCount(profileResponse.data.followersCount || 0);
-      setFollowingCount(profileResponse.data.followingCount || 0);
+      setFollowersCount(profileResponse.data.data.followersCount || 0);
+      setFollowingCount(profileResponse.data.data.followingCount || 0);
       
       // Fetch user posts
       const postsResponse = await postAPI.getPosts(id);
@@ -74,6 +91,47 @@ export default function ProfilePage() {
     setActiveTab(tab);
   };
 
+  const handleEditProfile = () => {
+    setShowEditModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowEditModal(false);
+  };
+
+  const handleEditFormChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setEditFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleSubmitEdit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      const response = await userAPI.updateProfile(editFormData);
+      
+      // Update local state
+      setProfile(prev => ({
+        ...prev,
+        ...editFormData
+      }));
+      
+      // Update auth context
+      updateUserData(editFormData);
+      
+      // Close modal
+      setShowEditModal(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className={styles.loading}>
@@ -81,6 +139,8 @@ export default function ProfilePage() {
       </div>
     );
   }
+
+  console.log("this is the profile", profile);
 
   if (!profile) {
     return (
@@ -99,7 +159,7 @@ export default function ProfilePage() {
             {profile.coverPhoto ? (
               <Image
                 src={profile.coverPhoto}
-                alt={`${profile.username}'s cover`}
+                alt={`${profile.user.username}'s cover`}
                 fill
                 style={{ objectFit: 'cover' }}
               />
@@ -113,7 +173,7 @@ export default function ProfilePage() {
               {profile.profilePicture ? (
                 <Image
                   src={profile.profilePicture}
-                  alt={profile.username}
+                  alt={profile.user.username}
                   width={120}
                   height={120}
                   className={styles.avatar}
@@ -126,8 +186,8 @@ export default function ProfilePage() {
             </div>
             
             <div className={styles.profileDetails}>
-              <h1 className={styles.profileName}>{profile.fullName}</h1>
-              <p className={styles.profileUsername}>@{profile.username}</p>
+              <h1 className={styles.profileName}>{profile.user.fullName}</h1>
+              <p className={styles.profileUsername}>@{profile.user.username}</p>
               
               {profile.bio && (
                 <p className={styles.profileBio}>{profile.bio}</p>
@@ -151,7 +211,7 @@ export default function ProfilePage() {
             
             <div className={styles.profileActions}>
               {isOwnProfile ? (
-                <Button variant="outline">Edit Profile</Button>
+                <Button variant="outline" onClick={handleEditProfile}>Edit Profile</Button>
               ) : (
                 <Button
                   variant={isFollowing ? 'secondary' : 'primary'}
@@ -231,6 +291,68 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+      
+      {showEditModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent}>
+            <h2>Edit Profile</h2>
+            <form onSubmit={handleSubmitEdit}>
+              <div className={styles.formGroup}>
+                <label htmlFor="fullName">Full Name</label>
+                <input
+                  type="text"
+                  id="fullName"
+                  name="fullName"
+                  value={editFormData.fullName}
+                  onChange={handleEditFormChange}
+                  className={styles.input}
+                />
+              </div>
+              
+              <div className={styles.formGroup}>
+                <label htmlFor="bio">Bio</label>
+                <textarea
+                  id="bio"
+                  name="bio"
+                  value={editFormData.bio}
+                  onChange={handleEditFormChange}
+                  className={styles.textarea}
+                  rows={4}
+                />
+              </div>
+              
+              <div className={styles.formGroup}>
+                <label className={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    name="isPrivate"
+                    checked={editFormData.isPrivate}
+                    onChange={handleEditFormChange}
+                  />
+                  Private Account
+                </label>
+              </div>
+              
+              <div className={styles.modalActions}>
+                <Button 
+                  type="button" 
+                  variant="secondary" 
+                  onClick={handleCloseModal}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  variant="primary"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </ProtectedRoute>
   );
 }
