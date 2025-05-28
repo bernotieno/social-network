@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log"
 	"net/http"
 	"time"
 
@@ -46,7 +47,7 @@ func CreateSession(ctx context.Context, db *sql.DB, userID string, w http.Respon
 	if err != nil {
 		return "", err
 	}
-
+	log.Println("cookie session", cookieSession)
 	// Set session ID in cookie
 	cookieSession.Values["session_id"] = session.ID
 	if err := cookieSession.Save(r, w); err != nil {

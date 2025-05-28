@@ -42,5 +42,5 @@ type responseWriter struct {
 // WriteHeader captures the status code and calls the underlying WriteHeader
 func (rw *responseWriter) WriteHeader(code int) {
 	rw.statusCode = code
-	rw.ResponseWriter.WriteHeader(code)
+	// rw.ResponseWriter.WriteHeader(code)
 }
