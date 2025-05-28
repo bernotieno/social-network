@@ -1,46 +1,118 @@
-import { io } from 'socket.io-client';
 import { getToken } from './auth';
 
 let socket = null;
+let eventListeners = new Map();
 
 /**
  * Initialize WebSocket connection
- * @returns {object} - Socket.io instance
+ * @param {string} token - Optional token to use for connection
+ * @returns {WebSocket} - Native WebSocket instance
  */
-export const initializeSocket = () => {
-  if (!socket) {
-    const token = getToken();
-    
-    socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080', {
-      auth: {
-        token
-      },
-      autoConnect: false,
-    });
-    
+export const initializeSocket = (token = null) => {
+  if (!socket || socket.readyState === WebSocket.CLOSED) {
+    const authToken = token || getToken();
+    console.log('Socket initialization - passed token:', token);
+    console.log('Socket initialization - retrieved token:', getToken());
+    console.log('Socket initialization - final authToken:', authToken);
+
+    if (!authToken) {
+      console.error('No authentication token available for WebSocket connection');
+      return null;
+    }
+
+    const wsUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'ws://localhost:8080';
+    const url = `${wsUrl}/ws?token=${authToken}`;
+    console.log('WebSocket URL:', url);
+
+    socket = new WebSocket(url);
+
     // Socket event listeners
-    socket.on('connect', () => {
+    socket.onopen = () => {
       console.log('Socket connected');
-    });
-    
-    socket.on('disconnect', () => {
+      // Trigger custom 'connect' event
+      triggerEvent('connect');
+    };
+
+    socket.onclose = () => {
       console.log('Socket disconnected');
-    });
-    
-    socket.on('connect_error', (error) => {
+      // Trigger custom 'disconnect' event
+      triggerEvent('disconnect');
+    };
+
+    socket.onerror = (error) => {
       console.error('Socket connection error:', error);
-    });
-    
-    // Connect to the socket server
-    socket.connect();
+      // Trigger custom 'connect_error' event
+      triggerEvent('connect_error', error);
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        // Trigger custom event based on message type
+        if (data.type) {
+          triggerEvent(data.type, data.payload);
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
   }
-  
+
   return socket;
 };
 
 /**
+ * Trigger custom events
+ * @param {string} eventName - Event name
+ * @param {any} data - Event data
+ */
+const triggerEvent = (eventName, data) => {
+  const listeners = eventListeners.get(eventName) || [];
+  listeners.forEach(callback => callback(data));
+};
+
+/**
+ * Add event listener (Socket.IO-like API)
+ * @param {string} eventName - Event name
+ * @param {function} callback - Callback function
+ */
+export const on = (eventName, callback) => {
+  if (!eventListeners.has(eventName)) {
+    eventListeners.set(eventName, []);
+  }
+  eventListeners.get(eventName).push(callback);
+};
+
+/**
+ * Remove event listener (Socket.IO-like API)
+ * @param {string} eventName - Event name
+ * @param {function} callback - Callback function
+ */
+export const off = (eventName, callback) => {
+  const listeners = eventListeners.get(eventName) || [];
+  const index = listeners.indexOf(callback);
+  if (index > -1) {
+    listeners.splice(index, 1);
+  }
+};
+
+/**
+ * Emit event to server (Socket.IO-like API)
+ * @param {string} eventName - Event name
+ * @param {any} data - Data to send
+ */
+export const emit = (eventName, data) => {
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({
+      type: eventName,
+      payload: data
+    }));
+  }
+};
+
+/**
  * Get the socket instance
- * @returns {object|null} - Socket.io instance or null if not initialized
+ * @returns {WebSocket|null} - WebSocket instance or null if not initialized
  */
 export const getSocket = () => socket;
 
@@ -49,8 +121,9 @@ export const getSocket = () => socket;
  */
 export const disconnectSocket = () => {
   if (socket) {
-    socket.disconnect();
+    socket.close();
     socket = null;
+    eventListeners.clear();
   }
 };
 
@@ -59,9 +132,7 @@ export const disconnectSocket = () => {
  * @param {string} roomId - Room ID to join
  */
 export const joinChatRoom = (roomId) => {
-  if (socket) {
-    socket.emit('join_room', { roomId });
-  }
+  emit('join_room', { roomId });
 };
 
 /**
@@ -69,9 +140,7 @@ export const joinChatRoom = (roomId) => {
  * @param {string} roomId - Room ID to leave
  */
 export const leaveChatRoom = (roomId) => {
-  if (socket) {
-    socket.emit('leave_room', { roomId });
-  }
+  emit('leave_room', { roomId });
 };
 
 /**
@@ -80,9 +149,7 @@ export const leaveChatRoom = (roomId) => {
  * @param {string} message - Message content
  */
 export const sendMessage = (roomId, message) => {
-  if (socket) {
-    socket.emit('send_message', { roomId, message });
-  }
+  emit('send_message', { roomId, message });
 };
 
 /**
@@ -91,11 +158,8 @@ export const sendMessage = (roomId, message) => {
  * @returns {function} - Function to unsubscribe
  */
 export const subscribeToMessages = (callback) => {
-  if (socket) {
-    socket.on('new_message', callback);
-    return () => socket.off('new_message', callback);
-  }
-  return () => {};
+  on('new_message', callback);
+  return () => off('new_message', callback);
 };
 
 /**
@@ -104,9 +168,6 @@ export const subscribeToMessages = (callback) => {
  * @returns {function} - Function to unsubscribe
  */
 export const subscribeToNotifications = (callback) => {
-  if (socket) {
-    socket.on('notification', callback);
-    return () => socket.off('notification', callback);
-  }
-  return () => {};
+  on('notification', callback);
+  return () => off('notification', callback);
 };
