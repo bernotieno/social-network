@@ -49,7 +49,18 @@ export const authAPI = {
 // User API calls
 export const userAPI = {
   getProfile: (userId) => api.get(`/users/${userId}`),
-  updateProfile: (userData) => api.put('/users/profile', userData),
+  updateProfile: (userData) => {
+    console.log('Sending profile update data:', userData);
+    return api.put('/users/profile', userData)
+      .then(response => {
+        console.log('Profile update response:', response);
+        return response;
+      })
+      .catch(error => {
+        console.error('Profile update error:', error.response || error);
+        throw error;
+      });
+  },
   uploadAvatar: (formData) => api.post('/users/avatar', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
