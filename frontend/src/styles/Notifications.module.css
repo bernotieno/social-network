@@ -11,11 +11,46 @@
   margin-bottom: 1.5rem;
 }
 
+.titleContainer {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
 .notificationsTitle {
   font-size: 1.75rem;
   font-weight: 600;
   color: #1877f2;
   margin: 0;
+}
+
+.refreshIndicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #65676b;
+  opacity: 0.8;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e4e6ea;
+  border-top: 2px solid #1877f2;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.notificationsActions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .loading, .emptyNotifications {
@@ -127,16 +162,30 @@
     align-items: flex-start;
     gap: 0.75rem;
   }
-  
+
+  .titleContainer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .refreshIndicator {
+    font-size: 0.8rem;
+  }
+
+  .notificationsActions {
+    flex-wrap: wrap;
+  }
+
   .notificationItem {
     flex-direction: column;
   }
-  
+
   .notificationSender {
     margin-right: 0;
     margin-bottom: 0.75rem;
   }
-  
+
   .unreadIndicator {
     top: 0.75rem;
     right: 0.75rem;
