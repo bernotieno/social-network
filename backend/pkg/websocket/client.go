@@ -3,6 +3,7 @@ package websocket
 import (
 	"encoding/json"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -24,29 +25,43 @@ const (
 
 // Message represents a WebSocket message
 type Message struct {
-	Type    string      `json:"type"`
-	RoomID  string      `json:"roomId,omitempty"`
-	Content interface{} `json:"content"`
-	SenderID string     `json:"senderId"`
+	Type     string      `json:"type"`
+	RoomID   string      `json:"roomId,omitempty"`
+	Content  interface{} `json:"content"`
+	SenderID string      `json:"senderId"`
+}
+
+// DBMessage represents a message for database storage
+type DBMessage struct {
+	SenderID   string
+	ReceiverID string
+	Content    string
+}
+
+// MessageService interface for saving messages
+type MessageService interface {
+	Create(message *DBMessage) error
 }
 
 // Client represents a connected WebSocket client
 type Client struct {
-	Hub      *Hub
-	Conn     *websocket.Conn
-	Send     chan []byte
-	UserID   string
-	Rooms    map[string]bool
+	Hub            *Hub
+	Conn           *websocket.Conn
+	Send           chan []byte
+	UserID         string
+	Rooms          map[string]bool
+	MessageService MessageService
 }
 
 // NewClient creates a new WebSocket client
-func NewClient(hub *Hub, conn *websocket.Conn, userID string) *Client {
+func NewClient(hub *Hub, conn *websocket.Conn, userID string, messageService MessageService) *Client {
 	return &Client{
-		Hub:      hub,
-		Conn:     conn,
-		Send:     make(chan []byte, 256),
-		UserID:   userID,
-		Rooms:    make(map[string]bool),
+		Hub:            hub,
+		Conn:           conn,
+		Send:           make(chan []byte, 256),
+		UserID:         userID,
+		Rooms:          make(map[string]bool),
+		MessageService: messageService,
 	}
 }
 
@@ -73,11 +88,27 @@ func (c *Client) ReadPump() {
 			break
 		}
 
-		// Parse the message
-		var msg Message
-		if err := json.Unmarshal(message, &msg); err != nil {
-			log.Printf("error parsing message: %v", err)
+		// Parse the raw message first to handle payload structure
+		var rawMsg map[string]interface{}
+		if err := json.Unmarshal(message, &rawMsg); err != nil {
+			log.Printf("error parsing raw message: %v", err)
 			continue
+		}
+
+		// Extract the actual message from payload if it exists
+		var msg Message
+		if payload, ok := rawMsg["payload"].(map[string]interface{}); ok {
+			msg.Type = rawMsg["type"].(string)
+			msg.Content = payload
+			if roomId, ok := payload["roomId"].(string); ok {
+				msg.RoomID = roomId
+			}
+		} else {
+			// Fallback to direct parsing
+			if err := json.Unmarshal(message, &msg); err != nil {
+				log.Printf("error parsing message: %v", err)
+				continue
+			}
 		}
 
 		// Set the sender ID
@@ -87,21 +118,108 @@ func (c *Client) ReadPump() {
 		switch msg.Type {
 		case "join_room":
 			// Join a chat room
-			if roomID, ok := msg.Content.(string); ok {
+			var roomID string
+			if roomIDStr, ok := msg.Content.(string); ok {
+				roomID = roomIDStr
+			} else if contentMap, ok := msg.Content.(map[string]interface{}); ok {
+				if roomIDStr, ok := contentMap["roomId"].(string); ok {
+					roomID = roomIDStr
+				}
+			}
+			if roomID != "" {
 				c.JoinRoom(roomID)
+			} else {
+				log.Printf("invalid room ID in join_room message")
 			}
 		case "leave_room":
 			// Leave a chat room
-			if roomID, ok := msg.Content.(string); ok {
+			var roomID string
+			if roomIDStr, ok := msg.Content.(string); ok {
+				roomID = roomIDStr
+			} else if contentMap, ok := msg.Content.(map[string]interface{}); ok {
+				if roomIDStr, ok := contentMap["roomId"].(string); ok {
+					roomID = roomIDStr
+				}
+			}
+			if roomID != "" {
 				c.LeaveRoom(roomID)
+			} else {
+				log.Printf("invalid room ID in leave_room message")
 			}
 		case "chat_message":
-			// Broadcast the message to the room
-			if msg.RoomID != "" {
-				// Serialize the message
-				data, err := json.Marshal(msg)
+			// Handle chat message
+			if msg.RoomID != "" && c.MessageService != nil {
+				// Extract message content
+				var messageContent map[string]interface{}
+				if content, ok := msg.Content.(map[string]interface{}); ok {
+					messageContent = content
+				} else {
+					log.Printf("invalid message content format")
+					continue
+				}
+
+				// Parse room ID to get receiver ID (format: "userId1-userId2")
+				roomParts := strings.Split(msg.RoomID, "-")
+				if len(roomParts) != 2 {
+					log.Printf("invalid room ID format: %s", msg.RoomID)
+					continue
+				}
+
+				// Determine receiver ID (the other user in the room)
+				var receiverID string
+				if roomParts[0] == c.UserID {
+					receiverID = roomParts[1]
+				} else {
+					receiverID = roomParts[0]
+				}
+
+				// Extract content from the message
+				var content string
+				if contentStr, ok := messageContent["content"].(string); ok {
+					content = contentStr
+				} else if contentObj, ok := messageContent["content"].(map[string]interface{}); ok {
+					// Handle nested content object
+					if contentStr, ok := contentObj["content"].(string); ok {
+						content = contentStr
+					} else {
+						log.Printf("nested message content is not a string")
+						continue
+					}
+				} else {
+					log.Printf("message content is not a string or object")
+					continue
+				}
+
+				// Create message object for database
+				dbMessage := &DBMessage{
+					SenderID:   c.UserID,
+					ReceiverID: receiverID,
+					Content:    content,
+				}
+
+				// Save message to database
+				if err := c.MessageService.Create(dbMessage); err != nil {
+					log.Printf("error saving message to database: %v", err)
+					// Continue with broadcast even if database save fails
+				}
+
+				// Create response message for broadcast
+				responseMsg := map[string]interface{}{
+					"roomId": msg.RoomID,
+					"message": map[string]interface{}{
+						"content":   content,
+						"sender":    c.UserID,
+						"timestamp": time.Now().Format(time.RFC3339),
+					},
+				}
+
+				// Serialize the response message
+				data, err := json.Marshal(map[string]interface{}{
+					"type":    "new_message",
+					"payload": responseMsg,
+				})
 				if err != nil {
-					log.Printf("error marshaling message: %v", err)
+					log.Printf("error marshaling response message: %v", err)
 					continue
 				}
 
@@ -161,11 +279,23 @@ func (c *Client) WritePump() {
 
 // JoinRoom adds the client to a room
 func (c *Client) JoinRoom(roomID string) {
+	log.Printf("Client %s joining room %s", c.UserID, roomID)
+
+	// Leave all previous rooms first
+	for oldRoomID := range c.Rooms {
+		if oldRoomID != roomID {
+			log.Printf("Client %s leaving previous room %s", c.UserID, oldRoomID)
+			delete(c.Rooms, oldRoomID)
+		}
+	}
+
+	// Join the new room
 	c.Hub.Register <- &Registration{
 		Client: c,
 		RoomID: roomID,
 	}
 	c.Rooms[roomID] = true
+	log.Printf("Client %s successfully joined room %s", c.UserID, roomID)
 }
 
 // LeaveRoom removes the client from a room
