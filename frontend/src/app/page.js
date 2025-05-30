@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 import { postAPI } from '@/utils/api';
 import Button from '@/components/Button';
+import Post from '@/components/Post';
 import styles from '@/styles/Home.module.css';
 
 export default function Home() {
@@ -26,12 +27,16 @@ export default function Home() {
     try {
       setIsLoading(true);
       const response = await postAPI.getFeed();
-      setPosts(response.data.posts || []);
+      setPosts(response.data.data.posts || []);
     } catch (error) {
       console.error('Error fetching feed:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleDeletePost = (postId) => {
+    setPosts(prev => prev.filter(post => post.id !== postId));
   };
 
   // Guest home page
@@ -97,10 +102,21 @@ export default function Home() {
         </div>
       ) : (
         <div className={styles.feedContent}>
-          <h1 className={styles.feedTitle}>Your Feed</h1>
-          {/* This will be replaced with actual post components */}
-          <div className={styles.postsPlaceholder}>
-            <p>Posts will be displayed here</p>
+          <div className={styles.feedHeader}>
+            <h1 className={styles.feedTitle}>Your Feed</h1>
+            <Link href="/posts/create">
+              <Button variant="primary">Create Post</Button>
+            </Link>
+          </div>
+
+          <div className={styles.postsContainer}>
+            {posts.map(post => (
+              <Post
+                key={post.id}
+                post={post}
+                onDelete={handleDeletePost}
+              />
+            ))}
           </div>
         </div>
       )}
