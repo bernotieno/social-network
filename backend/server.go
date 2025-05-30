@@ -117,6 +117,7 @@ func registerRoutes(r *mux.Router, h *handlers.Handler) {
 	users.HandleFunc("/{id}", h.GetUser).Methods("GET")
 	users.HandleFunc("/profile", middleware.AuthMiddleware(h.UpdateProfile)).Methods("PUT")
 	users.HandleFunc("/avatar", middleware.AuthMiddleware(h.UploadAvatar)).Methods("POST")
+	users.HandleFunc("/cover", middleware.AuthMiddleware(h.UploadCoverPhoto)).Methods("POST")
 	users.HandleFunc("/{id}/follow", middleware.AuthMiddleware(h.FollowUser)).Methods("POST")
 	users.HandleFunc("/{id}/follow", middleware.AuthMiddleware(h.UnfollowUser)).Methods("DELETE")
 	users.HandleFunc("/{id}/followers", h.GetFollowers).Methods("GET")
@@ -164,5 +165,5 @@ func registerRoutes(r *mux.Router, h *handlers.Handler) {
 
 	// Static file server for uploaded images
 	fs := http.FileServer(http.Dir("./uploads"))
-	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", fs))
+	r.PathPrefix("/uploads/").Handler(middleware.CORSMiddleware(http.StripPrefix("/uploads/", fs)))
 }

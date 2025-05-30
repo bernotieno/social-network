@@ -30,15 +30,35 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		// Get session cookie
+		// Try cookie authentication first
 		sessionID, err := auth.GetSessionCookie(r)
-		if err != nil {
-			utils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized: "+err.Error())
+		if err == nil {
+			// Validate session
+			userID, err := auth.ValidateSession(r.Context(), db, sessionID)
+			if err == nil {
+				// Add user ID to request context
+				ctx := context.WithValue(r.Context(), UserIDKey, userID)
+				next(w, r.WithContext(ctx))
+				return
+			}
+		}
+
+		// If cookie auth fails, try Bearer token authentication
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			utils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized: No authentication provided")
 			return
 		}
 
-		// Validate session
-		userID, err := auth.ValidateSession(r.Context(), db, sessionID)
+		// Check if the header has the correct format
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			utils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized: Invalid authorization format")
+			return
+		}
+
+		// Validate token
+		userID, err := auth.ValidateSession(r.Context(), db, parts[1])
 		if err != nil {
 			utils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized: "+err.Error())
 			return
@@ -79,30 +99,29 @@ func WebSocketAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		if authHeader == "" {
 			// Also check for token in query parameters
 			token := r.URL.Query().Get("token")
-			if token == "" {
-				utils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized: No authentication provided")
-				return
+			if token != "" {
+				authHeader = "Bearer " + token
 			}
-			authHeader = "Bearer " + token
 		}
 
-		// Check if the header has the correct format
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			utils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized: Invalid authorization format")
-			return
+		// If we have an auth header, try to validate it
+		if authHeader != "" {
+			// Check if the header has the correct format
+			parts := strings.Split(authHeader, " ")
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				// Validate token
+				userID, err := auth.ValidateSession(r.Context(), db, parts[1])
+				if err == nil {
+					// Add user ID to request context
+					ctx := context.WithValue(r.Context(), UserIDKey, userID)
+					next(w, r.WithContext(ctx))
+					return
+				}
+			}
 		}
 
-		// Validate token
-		userID, err := auth.ValidateSession(r.Context(), db, parts[1])
-		if err != nil {
-			utils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized: "+err.Error())
-			return
-		}
-
-		// Add user ID to request context
-		ctx := context.WithValue(r.Context(), UserIDKey, userID)
-		next(w, r.WithContext(ctx))
+		// If all authentication methods fail, return unauthorized
+		utils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized: No valid authentication provided")
 	}
 }
 

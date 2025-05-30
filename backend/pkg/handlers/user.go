@@ -217,6 +217,63 @@ func (h *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// UploadCoverPhoto handles uploading a user's cover photo
+func (h *Handler) UploadCoverPhoto(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context
+	userID, err := middleware.GetUserID(r)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	// Parse multipart form
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, "Failed to parse form")
+		return
+	}
+
+	// Get file from form
+	file, header, err := r.FormFile("coverPhoto")
+	if err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, "No file uploaded")
+		return
+	}
+	defer file.Close()
+
+	// Save image
+	imagePath, err := utils.SaveImage(file, header, "covers")
+	if err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Get user
+	user, err := h.UserService.GetByID(userID)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	// Delete old cover photo if exists
+	if user.CoverPhoto != "" {
+		utils.DeleteImage(user.CoverPhoto)
+	}
+
+	// Update user's cover photo
+	user.CoverPhoto = imagePath
+	if err := h.UserService.Update(user); err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to update cover photo")
+		return
+	}
+
+	// Remove password from response
+	user.Password = ""
+
+	utils.RespondWithSuccess(w, http.StatusOK, "Cover photo updated successfully", map[string]interface{}{
+		"user": user,
+	})
+}
+
 // FollowUser handles following a user
 func (h *Handler) FollowUser(w http.ResponseWriter, r *http.Request) {
 	// Get current user ID from context
