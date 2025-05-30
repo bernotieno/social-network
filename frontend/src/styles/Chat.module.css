@@ -12,11 +12,14 @@
   flex-direction: column;
 }
 
-.sidebarTitle {
+.sidebarHeader {
   padding: 1rem;
+  border-bottom: 1px solid #dddfe2;
+}
+
+.sidebarTitle {
   font-size: 1.25rem;
   font-weight: 600;
-  border-bottom: 1px solid #dddfe2;
   margin: 0;
 }
 
@@ -52,10 +55,14 @@
   background-color: #e6f2ff;
 }
 
+.contactAvatarContainer {
+  position: relative;
+  margin-right: 0.75rem;
+}
+
 .contactAvatar {
   border-radius: 50%;
   object-fit: cover;
-  margin-right: 0.75rem;
 }
 
 .contactAvatarPlaceholder {
@@ -68,7 +75,17 @@
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  margin-right: 0.75rem;
+}
+
+.onlineIndicator {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  background-color: #10b981;
+  border: 2px solid white;
+  border-radius: 50%;
 }
 
 .contactInfo {
@@ -116,7 +133,6 @@
 .headerAvatar {
   border-radius: 50%;
   object-fit: cover;
-  margin-right: 0.75rem;
 }
 
 .headerAvatarPlaceholder {
@@ -129,7 +145,6 @@
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  margin-right: 0.75rem;
 }
 
 .headerName {
@@ -142,6 +157,11 @@
   font-size: 0.8rem;
   color: #65676b;
   margin: 0;
+}
+
+.onlineText {
+  color: #10b981;
+  font-weight: 500;
 }
 
 .messagesContainer {
