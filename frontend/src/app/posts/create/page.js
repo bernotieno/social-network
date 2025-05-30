@@ -70,7 +70,8 @@ export default function CreatePost() {
       }
 
       // Call API to create post
-      await postAPI.createPost(formData);
+      const response = await postAPI.createPost(formData);
+      console.log('Post created:', response.data);
 
       // Redirect to home page after successful post creation
       router.push('/');
