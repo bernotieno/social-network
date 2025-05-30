@@ -255,6 +255,17 @@
   gap: 1.5rem;
 }
 
+.usersList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.followersGrid,
+.followingGrid {
+  width: 100%;
+}
+
 .emptyState p {
   margin: 0.5rem 0;
 }
