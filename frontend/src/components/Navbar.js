@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 import useNotifications from '@/hooks/useNotifications';
+import { getImageUrl } from '@/utils/images';
 import styles from '@/styles/Navbar.module.css';
 
 const Navbar = () => {
@@ -26,8 +27,8 @@ const Navbar = () => {
         </div>
 
         {/* Mobile menu button */}
-        <button 
-          className={styles.mobileMenuButton} 
+        <button
+          className={styles.mobileMenuButton}
           onClick={toggleMobileMenu}
           aria-label="Toggle menu"
         >
@@ -41,8 +42,8 @@ const Navbar = () => {
               <Link href="/" className={styles.navLink}>
                 Home
               </Link>
-              <Link href="/posts" className={styles.navLink}>
-                Posts
+              <Link href="/posts/create" className={styles.navLink}>
+                Create Post
               </Link>
               <Link href="/groups" className={styles.navLink}>
                 Groups
@@ -59,11 +60,11 @@ const Navbar = () => {
               <div className={styles.profileDropdown}>
                 <button className={styles.profileButton}>
                   {user?.profilePicture ? (
-                    <Image 
-                      src={user.profilePicture} 
-                      alt={user.username} 
-                      width={32} 
-                      height={32} 
+                    <Image
+                      src={getImageUrl(user.profilePicture)}
+                      alt={user.username}
+                      width={32}
+                      height={32}
                       className={styles.avatar}
                     />
                   ) : (

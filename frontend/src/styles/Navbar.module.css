@@ -1,9 +1,15 @@
 .navbar {
-  background-color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
   z-index: 1000;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .container {
@@ -165,7 +171,7 @@
   }
 
   .navLinks {
-    position: absolute;
+    position: fixed;
     top: 60px;
     left: 0;
     right: 0;
@@ -174,6 +180,7 @@
     padding: 1rem;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     display: none;
+    z-index: 999;
   }
 
   .navLinks.active {
