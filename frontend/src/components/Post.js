@@ -7,6 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import { postAPI } from '@/utils/api';
 import { getImageUrl } from '@/utils/images';
+import { subscribeToPostLikes, subscribeToNewComments, subscribeToCommentDeletions } from '@/utils/socket';
 import Button from '@/components/Button';
 import { ConfirmModal, AlertModal } from '@/components/Modal';
 import styles from '@/styles/Post.module.css';
@@ -134,6 +135,48 @@ const Post = ({ post, onDelete, onUpdate }) => {
       return () => document.removeEventListener('click', handleClickOutside);
     }
   }, [showDropdown]);
+
+  // Real-time WebSocket event listeners
+  useEffect(() => {
+    // Subscribe to post likes/unlikes
+    const unsubscribeLikes = subscribeToPostLikes((data) => {
+      if (data.postId === post.id) {
+        if (data.action === 'like') {
+          setLikesCount(prev => prev + 1);
+          // If the current user liked it, update the like state
+          if (data.userId === user?.id) {
+            setIsLiked(true);
+          }
+        } else if (data.action === 'unlike') {
+          setLikesCount(prev => Math.max(0, prev - 1));
+          // If the current user unliked it, update the like state
+          if (data.userId === user?.id) {
+            setIsLiked(false);
+          }
+        }
+      }
+    });
+
+    // Subscribe to new comments
+    const unsubscribeComments = subscribeToNewComments((data) => {
+      if (data.postId === post.id && showComments) {
+        setComments(prev => [...prev, data.comment]);
+      }
+    });
+
+    // Subscribe to comment deletions
+    const unsubscribeCommentDeletions = subscribeToCommentDeletions((data) => {
+      if (data.postId === post.id && showComments) {
+        setComments(prev => prev.filter(comment => comment.id !== data.commentId));
+      }
+    });
+
+    return () => {
+      unsubscribeLikes();
+      unsubscribeComments();
+      unsubscribeCommentDeletions();
+    };
+  }, [post.id, user?.id, showComments]);
 
   const handleDropdownToggle = () => {
     setShowDropdown(!showDropdown);
