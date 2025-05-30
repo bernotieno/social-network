@@ -4,6 +4,39 @@
   padding: 1rem;
 }
 
+/* Update message styles */
+.updateMessage {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-weight: 500;
+  text-align: center;
+  animation: slideIn 0.3s ease-out;
+}
+
+.updateMessage.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.updateMessage.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .loading, .notFound {
   display: flex;
   flex-direction: column;
@@ -164,7 +197,29 @@
 
 .tabContent {
   padding: 1.5rem;
-  min-height: 300px;
+  height: 600px; /* Fixed height */
+  overflow-y: auto; /* Enable vertical scrolling */
+  overflow-x: hidden; /* Hide horizontal scrolling */
+  scroll-behavior: smooth; /* Smooth scrolling */
+}
+
+/* Custom scrollbar styling */
+.tabContent::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tabContent::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.tabContent::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.tabContent::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 .emptyState {
@@ -177,9 +232,10 @@
 }
 
 .postsGrid, .followersGrid, .followingGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
 }
 
 .postsPlaceholder, .followersPlaceholder, .followingPlaceholder {
@@ -193,6 +249,16 @@
   color: #65676b;
 }
 
+.postsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.emptyState p {
+  margin: 0.5rem 0;
+}
+
 /* Responsive styles */
 @media (max-width: 768px) {
   .profileInfo {
@@ -200,18 +266,22 @@
     align-items: center;
     text-align: center;
   }
-  
+
   .profilePicture {
     margin-right: 0;
     margin-bottom: 1rem;
   }
-  
+
   .profileStats {
     justify-content: center;
   }
-  
+
   .profileActions {
     justify-content: center;
+  }
+
+  .tabContent {
+    height: 400px; /* Smaller height on mobile */
   }
 }
 
@@ -272,4 +342,73 @@
   justify-content: flex-end;
   gap: 1rem;
   margin-top: 1.5rem;
+}
+
+.fileInput {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0;
+  margin-bottom: 0.5rem;
+}
+
+.imagePreview {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.imagePreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.coverImagePreview {
+  width: 200px;
+  height: 100px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.coverImagePreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.coverPhotoUpload {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.profilePicUpload {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
 }
