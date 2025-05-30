@@ -160,4 +160,10 @@ export const notificationAPI = {
   markAllAsRead: () => api.put('/notifications/read-all'),
 };
 
+// Message API calls
+export const messageAPI = {
+  sendMessage: (receiverId, content) => api.post('/messages', { receiverId, content }),
+  getMessages: (userId) => api.get(`/messages/${userId}`),
+};
+
 export default api;
