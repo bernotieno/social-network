@@ -10,18 +10,18 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import styles from '@/styles/Notifications.module.css';
 
 export default function Notifications() {
-  const { 
-    notifications, 
-    isLoading, 
-    fetchNotifications, 
-    markAsRead, 
-    markAllAsRead 
+  const {
+    notifications,
+    isLoading,
+    fetchNotifications,
+    markAsRead,
+    markAllAsRead
   } = useNotifications();
-  
+
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
-  
+
   const getNotificationContent = (notification) => {
     switch (notification.type) {
       case 'follow_request':
@@ -31,15 +31,15 @@ export default function Notifications() {
               requested to follow you
             </span>
             <div className={styles.notificationActions}>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 size="small"
                 onClick={() => handleFollowResponse(notification.id, true)}
               >
                 Accept
               </Button>
-              <Button 
-                variant="secondary" 
+              <Button
+                variant="secondary"
                 size="small"
                 onClick={() => handleFollowResponse(notification.id, false)}
               >
@@ -79,15 +79,15 @@ export default function Notifications() {
               invited you to join the group "{notification.data?.groupName}"
             </span>
             <div className={styles.notificationActions}>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 size="small"
                 onClick={() => handleGroupInviteResponse(notification.id, true)}
               >
                 Join
               </Button>
-              <Button 
-                variant="secondary" 
+              <Button
+                variant="secondary"
                 size="small"
                 onClick={() => handleGroupInviteResponse(notification.id, false)}
               >
@@ -103,15 +103,15 @@ export default function Notifications() {
               requested to join your group "{notification.data?.groupName}"
             </span>
             <div className={styles.notificationActions}>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 size="small"
                 onClick={() => handleGroupJoinResponse(notification.id, true)}
               >
                 Accept
               </Button>
-              <Button 
-                variant="secondary" 
+              <Button
+                variant="secondary"
                 size="small"
                 onClick={() => handleGroupJoinResponse(notification.id, false)}
               >
@@ -127,22 +127,22 @@ export default function Notifications() {
               invited you to the event "{notification.data?.eventName}"
             </span>
             <div className={styles.notificationActions}>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 size="small"
                 onClick={() => handleEventResponse(notification.id, 'going')}
               >
                 Going
               </Button>
-              <Button 
-                variant="secondary" 
+              <Button
+                variant="secondary"
                 size="small"
                 onClick={() => handleEventResponse(notification.id, 'maybe')}
               >
                 Maybe
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="small"
                 onClick={() => handleEventResponse(notification.id, 'not_going')}
               >
@@ -159,37 +159,37 @@ export default function Notifications() {
         );
     }
   };
-  
+
   // These functions would call the appropriate API endpoints
   const handleFollowResponse = (notificationId, accept) => {
     console.log(`Follow request ${accept ? 'accepted' : 'declined'}: ${notificationId}`);
     markAsRead(notificationId);
   };
-  
+
   const handleGroupInviteResponse = (notificationId, accept) => {
     console.log(`Group invite ${accept ? 'accepted' : 'declined'}: ${notificationId}`);
     markAsRead(notificationId);
   };
-  
+
   const handleGroupJoinResponse = (notificationId, accept) => {
     console.log(`Group join request ${accept ? 'accepted' : 'declined'}: ${notificationId}`);
     markAsRead(notificationId);
   };
-  
+
   const handleEventResponse = (notificationId, response) => {
     console.log(`Event response ${response}: ${notificationId}`);
     markAsRead(notificationId);
   };
-  
+
   return (
     <ProtectedRoute>
       <div className={styles.notificationsContainer}>
         <div className={styles.notificationsHeader}>
           <h1 className={styles.notificationsTitle}>Notifications</h1>
-          
-          {notifications.length > 0 && (
-            <Button 
-              variant="secondary" 
+
+          {notifications && notifications.length > 0 && (
+            <Button
+              variant="secondary"
               size="small"
               onClick={markAllAsRead}
             >
@@ -197,10 +197,10 @@ export default function Notifications() {
             </Button>
           )}
         </div>
-        
+
         {isLoading ? (
           <div className={styles.loading}>Loading notifications...</div>
-        ) : notifications.length === 0 ? (
+        ) : !notifications || notifications.length === 0 ? (
           <div className={styles.emptyNotifications}>
             <p>No notifications yet</p>
             <p>When you get notifications, they'll appear here</p>
@@ -208,18 +208,18 @@ export default function Notifications() {
         ) : (
           <div className={styles.notificationsList}>
             {notifications.map(notification => (
-              <div 
-                key={notification.id} 
+              <div
+                key={notification.id}
                 className={`${styles.notificationItem} ${!notification.readAt ? styles.unread : ''}`}
                 onClick={() => markAsRead(notification.id)}
               >
                 <Link href={`/profile/${notification.sender.id}`} className={styles.notificationSender}>
                   {notification.sender.profilePicture ? (
-                    <Image 
-                      src={notification.sender.profilePicture} 
-                      alt={notification.sender.username} 
-                      width={50} 
-                      height={50} 
+                    <Image
+                      src={notification.sender.profilePicture}
+                      alt={notification.sender.username}
+                      width={50}
+                      height={50}
                       className={styles.senderAvatar}
                     />
                   ) : (
@@ -228,7 +228,7 @@ export default function Notifications() {
                     </div>
                   )}
                 </Link>
-                
+
                 <div className={styles.notificationContent}>
                   <div className={styles.notificationHeader}>
                     <Link href={`/profile/${notification.sender.id}`} className={styles.senderName}>
@@ -236,12 +236,12 @@ export default function Notifications() {
                     </Link>
                     {getNotificationContent(notification)}
                   </div>
-                  
+
                   <div className={styles.notificationTime}>
                     {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                   </div>
                 </div>
-                
+
                 {!notification.readAt && (
                   <div className={styles.unreadIndicator} />
                 )}

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { notificationAPI } from '@/utils/api';
-import { subscribeToNotifications } from '@/utils/socket';
 import { useAuth } from './useAuth';
 
 const useNotifications = () => {
@@ -15,16 +14,16 @@ const useNotifications = () => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchNotifications();
-      
-      // Subscribe to real-time notifications
-      const unsubscribe = subscribeToNotifications((notification) => {
-        setNotifications(prev => [notification, ...prev]);
-        setUnreadCount(prev => prev + 1);
-      });
-      
-      return () => {
-        unsubscribe();
-      };
+
+      // TODO: Re-enable real-time notifications when WebSocket is fixed
+      // const unsubscribe = subscribeToNotifications((notification) => {
+      //   setNotifications(prev => [notification, ...prev]);
+      //   setUnreadCount(prev => prev + 1);
+      // });
+      //
+      // return () => {
+      //   unsubscribe();
+      // };
     }
   }, [isAuthenticated]);
 
@@ -33,16 +32,22 @@ const useNotifications = () => {
     try {
       setIsLoading(true);
       const response = await notificationAPI.getNotifications();
-      setNotifications(response.data.notifications);
-      
+      console.log(">>>>res2", response)
+      // Handle case where notifications might be null
+      const notificationsData = response.data.data.notifications || [];
+      setNotifications(notificationsData);
+
       // Calculate unread count
-      const unread = response.data.notifications.filter(
+      const unread = notificationsData.filter(
         notification => !notification.readAt
       ).length;
-      
+
       setUnreadCount(unread);
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      // Set empty array on error to prevent undefined issues
+      setNotifications([]);
+      setUnreadCount(0);
     } finally {
       setIsLoading(false);
     }
@@ -52,16 +57,16 @@ const useNotifications = () => {
   const markAsRead = async (notificationId) => {
     try {
       await notificationAPI.markAsRead(notificationId);
-      
+
       // Update local state
-      setNotifications(prev => 
-        prev.map(notification => 
-          notification.id === notificationId 
-            ? { ...notification, readAt: new Date().toISOString() } 
+      setNotifications(prev =>
+        prev.map(notification =>
+          notification.id === notificationId
+            ? { ...notification, readAt: new Date().toISOString() }
             : notification
         )
       );
-      
+
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -72,15 +77,15 @@ const useNotifications = () => {
   const markAllAsRead = async () => {
     try {
       await notificationAPI.markAllAsRead();
-      
+
       // Update local state
-      setNotifications(prev => 
-        prev.map(notification => ({ 
-          ...notification, 
-          readAt: notification.readAt || new Date().toISOString() 
+      setNotifications(prev =>
+        prev.map(notification => ({
+          ...notification,
+          readAt: notification.readAt || new Date().toISOString()
         }))
       );
-      
+
       setUnreadCount(0);
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
