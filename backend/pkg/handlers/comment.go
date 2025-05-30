@@ -8,6 +8,7 @@ import (
 	"github.com/bernaotieno/social-network/backend/pkg/middleware"
 	"github.com/bernaotieno/social-network/backend/pkg/models"
 	"github.com/bernaotieno/social-network/backend/pkg/utils"
+	"github.com/bernaotieno/social-network/backend/pkg/websocket"
 	"github.com/gorilla/mux"
 )
 
@@ -132,11 +133,31 @@ func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
 			Content:  "commented on your post",
 			Data:     `{"postId":"` + postID + `","comment":"` + req.Content + `"}`,
 		}
-		
+
 		if err := h.NotificationService.Create(notification); err != nil {
 			// Log error but don't fail the request
 			// TODO: Add proper logging
 		}
+	}
+
+	// Broadcast new comment event via WebSocket
+	newCommentEvent := map[string]interface{}{
+		"postId":  postID,
+		"comment": comment,
+	}
+
+	message := &websocket.Message{
+		Type:    "new_comment",
+		Content: newCommentEvent,
+	}
+
+	messageData, _ := json.Marshal(message)
+
+	// Broadcast to all connected clients
+	h.Hub.Broadcast <- &websocket.Broadcast{
+		RoomID:  "", // Broadcast to default room (all users)
+		Message: messageData,
+		Sender:  nil, // No specific sender for server events
 	}
 
 	utils.RespondWithSuccess(w, http.StatusCreated, "Comment added successfully", map[string]interface{}{
@@ -173,6 +194,26 @@ func (h *Handler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to delete comment")
 		}
 		return
+	}
+
+	// Broadcast comment deletion event via WebSocket
+	deleteCommentEvent := map[string]interface{}{
+		"postId":    postID,
+		"commentId": commentID,
+	}
+
+	message := &websocket.Message{
+		Type:    "comment_deleted",
+		Content: deleteCommentEvent,
+	}
+
+	messageData, _ := json.Marshal(message)
+
+	// Broadcast to all connected clients
+	h.Hub.Broadcast <- &websocket.Broadcast{
+		RoomID:  "", // Broadcast to default room (all users)
+		Message: messageData,
+		Sender:  nil, // No specific sender for server events
 	}
 
 	utils.RespondWithSuccess(w, http.StatusOK, "Comment deleted successfully", nil)
