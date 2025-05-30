@@ -1,3 +1,5 @@
+import { getToken } from './auth';
+
 let socket = null;
 let eventListeners = new Map();
 
@@ -7,11 +9,18 @@ let eventListeners = new Map();
  */
 export const initializeSocket = () => {
   if (!socket || socket.readyState === WebSocket.CLOSED) {
-    // For browser clients, we'll rely on session cookies instead of tokens
-    // The WebSocket will authenticate using the same session cookie as API calls
+    // Get the authentication token
+    const token = getToken();
+    console.log('Retrieved token for WebSocket:', token ? 'Token found' : 'No token');
+    if (!token) {
+      console.warn('No authentication token found, cannot initialize WebSocket');
+      return null;
+    }
+
+    // Include token as query parameter for WebSocket authentication
     const wsUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'ws://localhost:8080';
-    const url = `${wsUrl}/ws`;
-    console.log('WebSocket URL:', url);
+    const url = `${wsUrl}/ws?token=${encodeURIComponent(token)}`;
+    console.log('Initializing WebSocket with URL:', url);
 
     try {
       socket = new WebSocket(url);
@@ -141,10 +150,10 @@ export const leaveChatRoom = (roomId) => {
 /**
  * Send a message to a chat room
  * @param {string} roomId - Room ID to send message to
- * @param {string} message - Message content
+ * @param {object} message - Message content
  */
 export const sendMessage = (roomId, message) => {
-  emit('send_message', { roomId, message });
+  emit('chat_message', { roomId, content: message });
 };
 
 /**
@@ -165,4 +174,54 @@ export const subscribeToMessages = (callback) => {
 export const subscribeToNotifications = (callback) => {
   on('notification', callback);
   return () => off('notification', callback);
+};
+
+/**
+ * Subscribe to post likes/unlikes
+ * @param {function} callback - Function to call when a post is liked/unliked
+ * @returns {function} - Function to unsubscribe
+ */
+export const subscribeToPostLikes = (callback) => {
+  on('post_like', callback);
+  return () => off('post_like', callback);
+};
+
+/**
+ * Subscribe to new posts
+ * @param {function} callback - Function to call when a new post is created
+ * @returns {function} - Function to unsubscribe
+ */
+export const subscribeToNewPosts = (callback) => {
+  on('new_post', callback);
+  return () => off('new_post', callback);
+};
+
+/**
+ * Subscribe to new comments
+ * @param {function} callback - Function to call when a new comment is added
+ * @returns {function} - Function to unsubscribe
+ */
+export const subscribeToNewComments = (callback) => {
+  on('new_comment', callback);
+  return () => off('new_comment', callback);
+};
+
+/**
+ * Subscribe to user presence updates (online/offline)
+ * @param {function} callback - Function to call when user presence changes
+ * @returns {function} - Function to unsubscribe
+ */
+export const subscribeToUserPresence = (callback) => {
+  on('user_presence', callback);
+  return () => off('user_presence', callback);
+};
+
+/**
+ * Subscribe to comment deletions
+ * @param {function} callback - Function to call when a comment is deleted
+ * @returns {function} - Function to unsubscribe
+ */
+export const subscribeToCommentDeletions = (callback) => {
+  on('comment_deleted', callback);
+  return () => off('comment_deleted', callback);
 };
