@@ -42,11 +42,20 @@ func (s *MessageService) Create(message *Message) error {
 		return errors.New("either receiverId or groupId must be set, but not both")
 	}
 
+	// Prepare SQL values - use NULL for empty strings to satisfy CHECK constraint
+	var receiverID, groupID interface{}
+	if message.ReceiverID != "" {
+		receiverID = message.ReceiverID
+		groupID = nil // Explicitly set to NULL for private messages
+	} else {
+		receiverID = nil // Explicitly set to NULL for group messages
+		groupID = message.GroupID
+	}
+
 	_, err := s.DB.Exec(`
 		INSERT INTO messages (id, sender_id, receiver_id, group_id, content, created_at)
 		VALUES (?, ?, ?, ?, ?, ?)
-	`, message.ID, message.SenderID, message.ReceiverID, message.GroupID, message.Content, message.CreatedAt)
-
+	`, message.ID, message.SenderID, receiverID, groupID, message.Content, message.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to create message: %w", err)
 	}
@@ -69,7 +78,6 @@ func (s *MessageService) GetByID(id string) (*Message, error) {
 		&message.ID, &message.SenderID, &message.ReceiverID, &message.GroupID, &message.Content, &message.CreatedAt, &readAt,
 		&message.Sender.ID, &message.Sender.Username, &message.Sender.FullName, &message.Sender.ProfilePicture,
 	)
-
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("message not found")
@@ -95,7 +103,6 @@ func (s *MessageService) GetPrivateMessages(user1ID, user2ID string, limit, offs
 		ORDER BY m.created_at DESC
 		LIMIT ? OFFSET ?
 	`, user1ID, user2ID, user2ID, user1ID, limit, offset)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to get private messages: %w", err)
 	}
@@ -139,7 +146,6 @@ func (s *MessageService) GetGroupMessages(groupID string, limit, offset int) ([]
 		ORDER BY m.created_at DESC
 		LIMIT ? OFFSET ?
 	`, groupID, limit, offset)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to get group messages: %w", err)
 	}
@@ -199,8 +205,8 @@ func (s *MessageService) MarkAsRead(id, userID string) error {
 func (s *MessageService) MarkAllAsRead(senderID, receiverID string) error {
 	now := time.Now()
 	_, err := s.DB.Exec(`
-		UPDATE messages 
-		SET read_at = ? 
+		UPDATE messages
+		SET read_at = ?
 		WHERE sender_id = ? AND receiver_id = ? AND read_at IS NULL
 	`, now, senderID, receiverID)
 	if err != nil {
@@ -229,12 +235,11 @@ func (s *MessageService) GetConversations(userID string) ([]*User, error) {
 		JOIN messages m ON (m.sender_id = u.id AND m.receiver_id = ?) OR (m.receiver_id = u.id AND m.sender_id = ?)
 		WHERE u.id != ?
 		ORDER BY (
-			SELECT MAX(created_at) 
-			FROM messages 
+			SELECT MAX(created_at)
+			FROM messages
 			WHERE (sender_id = u.id AND receiver_id = ?) OR (receiver_id = u.id AND sender_id = ?)
 		) DESC
 	`, userID, userID, userID, userID, userID)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to get conversations: %w", err)
 	}
