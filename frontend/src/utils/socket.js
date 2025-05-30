@@ -1,61 +1,56 @@
-import { getToken } from './auth';
-
 let socket = null;
 let eventListeners = new Map();
 
 /**
  * Initialize WebSocket connection
- * @param {string} token - Optional token to use for connection
  * @returns {WebSocket} - Native WebSocket instance
  */
-export const initializeSocket = (token = null) => {
+export const initializeSocket = () => {
   if (!socket || socket.readyState === WebSocket.CLOSED) {
-    const authToken = token || getToken();
-    console.log('Socket initialization - passed token:', token);
-    console.log('Socket initialization - retrieved token:', getToken());
-    console.log('Socket initialization - final authToken:', authToken);
-
-    if (!authToken) {
-      console.error('No authentication token available for WebSocket connection');
-      return null;
-    }
-
+    // For browser clients, we'll rely on session cookies instead of tokens
+    // The WebSocket will authenticate using the same session cookie as API calls
     const wsUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'ws://localhost:8080';
-    const url = `${wsUrl}/ws?token=${authToken}`;
+    const url = `${wsUrl}/ws`;
     console.log('WebSocket URL:', url);
 
-    socket = new WebSocket(url);
+    try {
+      socket = new WebSocket(url);
 
-    // Socket event listeners
-    socket.onopen = () => {
-      console.log('Socket connected');
-      // Trigger custom 'connect' event
-      triggerEvent('connect');
-    };
+      // Socket event listeners
+      socket.onopen = () => {
+        console.log('Socket connected');
+        // Trigger custom 'connect' event
+        triggerEvent('connect');
+      };
 
-    socket.onclose = () => {
-      console.log('Socket disconnected');
-      // Trigger custom 'disconnect' event
-      triggerEvent('disconnect');
-    };
+      socket.onclose = () => {
+        console.log('Socket disconnected');
+        // Trigger custom 'disconnect' event
+        triggerEvent('disconnect');
+      };
 
-    socket.onerror = (error) => {
-      console.error('Socket connection error:', error);
-      // Trigger custom 'connect_error' event
-      triggerEvent('connect_error', error);
-    };
+      socket.onerror = (error) => {
+        console.error('Socket connection error:', error);
+        console.error('Socket connection error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+        // Trigger custom 'connect_error' event
+        triggerEvent('connect_error', error);
+      };
 
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        // Trigger custom event based on message type
-        if (data.type) {
-          triggerEvent(data.type, data.payload);
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          // Trigger custom event based on message type
+          if (data.type) {
+            triggerEvent(data.type, data.payload);
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
         }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
+      };
+    } catch (error) {
+      console.error('Error creating WebSocket connection:', error);
+      return null;
+    }
   }
 
   return socket;

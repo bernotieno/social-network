@@ -11,7 +11,7 @@ import {
   updateUserData as updateStoredUserData
 } from '@/utils/auth';
 import { authAPI } from '@/utils/api';
-import { initializeSocket, disconnectSocket } from '@/utils/socket';
+import { disconnectSocket } from '@/utils/socket';
 
 // Create auth context
 const AuthContext = createContext({
@@ -36,8 +36,8 @@ export const AuthProvider = ({ children }) => {
       const userData = getUser();
       if (userData) {
         setUser(userData);
-        // Initialize socket connection
-        initializeSocket();
+        // TODO: Fix WebSocket authentication before enabling
+        // initializeSocket();
       }
       setIsLoading(false);
     };
@@ -60,8 +60,8 @@ export const AuthProvider = ({ children }) => {
       setAuth(token, user);
       setUser(user);
 
-      // Initialize socket connection with the token
-      initializeSocket(token);
+      // TODO: Fix WebSocket authentication before enabling
+      // initializeSocket(token);
 
       return { success: true };
     } catch (error) {
@@ -85,8 +85,8 @@ export const AuthProvider = ({ children }) => {
       setAuth(token, user);
       setUser(user);
 
-      // Initialize socket connection with the token
-      initializeSocket(token);
+      // TODO: Fix WebSocket authentication before enabling
+      // initializeSocket(token);
 
       return { success: true };
     } catch (error) {
