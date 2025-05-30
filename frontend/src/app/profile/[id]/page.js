@@ -8,6 +8,7 @@ import { userAPI, postAPI } from '@/utils/api';
 import { getUserProfilePictureUrl, getUserCoverPhotoUrl, getFallbackAvatar } from '@/utils/images';
 import Button from '@/components/Button';
 import Post from '@/components/Post';
+import UserCard from '@/components/UserCard';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import styles from '@/styles/Profile.module.css';
 
@@ -17,8 +18,12 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [followers, setFollowers] = useState([]);
+  const [following, setFollowing] = useState([]);
   const [activeTab, setActiveTab] = useState('posts');
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingFollowers, setIsLoadingFollowers] = useState(false);
+  const [isLoadingFollowing, setIsLoadingFollowing] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
@@ -77,7 +82,7 @@ export default function ProfilePage() {
 
       // Check if current user is following this profile
       if (currentUser && !isOwnProfile) {
-        setIsFollowing(profileResponse.data.isFollowedByCurrentUser || false);
+        setIsFollowing(profileResponse.data.data.isFollowedByCurrentUser || false);
       }
 
       // Set followers and following counts
@@ -100,18 +105,61 @@ export default function ProfilePage() {
         await userAPI.unfollow(id);
         setIsFollowing(false);
         setFollowersCount(prev => prev - 1);
+
+        // Remove current user from followers list if it's loaded
+        if (followers.length > 0) {
+          setFollowers(prev => prev.filter(follower => follower.id !== currentUser?.id));
+        }
       } else {
         await userAPI.follow(id);
         setIsFollowing(true);
         setFollowersCount(prev => prev + 1);
+
+        // Add current user to followers list if it's loaded
+        if (followers.length > 0 && currentUser) {
+          setFollowers(prev => [currentUser, ...prev]);
+        }
       }
     } catch (error) {
       console.error('Error following/unfollowing user:', error);
     }
   };
 
+  const fetchFollowers = async () => {
+    try {
+      setIsLoadingFollowers(true);
+      const response = await userAPI.getFollowers(id);
+      setFollowers(response.data.data.followers || []);
+    } catch (error) {
+      console.error('Error fetching followers:', error);
+      setFollowers([]);
+    } finally {
+      setIsLoadingFollowers(false);
+    }
+  };
+
+  const fetchFollowing = async () => {
+    try {
+      setIsLoadingFollowing(true);
+      const response = await userAPI.getFollowing(id);
+      setFollowing(response.data.data.following || []);
+    } catch (error) {
+      console.error('Error fetching following:', error);
+      setFollowing([]);
+    } finally {
+      setIsLoadingFollowing(false);
+    }
+  };
+
   const handleTabChange = (tab) => {
     setActiveTab(tab);
+
+    // Fetch data when switching to followers/following tabs
+    if (tab === 'followers' && followers.length === 0) {
+      fetchFollowers();
+    } else if (tab === 'following' && following.length === 0) {
+      fetchFollowing();
+    }
   };
 
   const handleEditProfile = () => {
@@ -476,13 +524,31 @@ export default function ProfilePage() {
 
             {activeTab === 'followers' && (
               <div className={styles.followersGrid}>
-                {followersCount === 0 ? (
+                {isLoadingFollowers ? (
+                  <div className={styles.loading}>
+                    <p>Loading followers...</p>
+                  </div>
+                ) : followers.length === 0 ? (
                   <div className={styles.emptyState}>
                     <p>No followers yet</p>
                   </div>
                 ) : (
-                  <div className={styles.followersPlaceholder}>
-                    <p>Followers will be displayed here</p>
+                  <div className={styles.usersList}>
+                    {followers.map(follower => (
+                      <UserCard
+                        key={follower.id}
+                        user={follower}
+                        showFollowButton={follower.id !== currentUser?.id}
+                        onFollowChange={(userId, isFollowing) => {
+                          // Update local state if needed
+                          console.log(`User ${userId} follow status changed to ${isFollowing}`);
+                          // Update the follower's isFollowing status in the local state
+                          setFollowers(prev => prev.map(f =>
+                            f.id === userId ? { ...f, isFollowing } : f
+                          ));
+                        }}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
@@ -490,13 +556,35 @@ export default function ProfilePage() {
 
             {activeTab === 'following' && (
               <div className={styles.followingGrid}>
-                {followingCount === 0 ? (
+                {isLoadingFollowing ? (
+                  <div className={styles.loading}>
+                    <p>Loading following...</p>
+                  </div>
+                ) : following.length === 0 ? (
                   <div className={styles.emptyState}>
                     <p>Not following anyone yet</p>
                   </div>
                 ) : (
-                  <div className={styles.followingPlaceholder}>
-                    <p>Following will be displayed here</p>
+                  <div className={styles.usersList}>
+                    {following.map(followedUser => (
+                      <UserCard
+                        key={followedUser.id}
+                        user={followedUser}
+                        showFollowButton={followedUser.id !== currentUser?.id}
+                        onFollowChange={(userId, isFollowing) => {
+                          // Update local state if needed
+                          if (!isFollowing) {
+                            // Remove from following list if unfollowed
+                            setFollowing(prev => prev.filter(user => user.id !== userId));
+                            setFollowingCount(prev => prev - 1);
+                          }
+                          // Update the followed user's isFollowing status in the local state
+                          setFollowing(prev => prev.map(f =>
+                            f.id === userId ? { ...f, isFollowing } : f
+                          ));
+                        }}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
