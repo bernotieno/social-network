@@ -19,8 +19,8 @@ export default function Notifications() {
   } = useNotifications();
 
   useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+    // fetchNotifications();
+  }, []);
 
   const getNotificationContent = (notification) => {
     switch (notification.type) {
