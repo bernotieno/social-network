@@ -48,29 +48,47 @@ func main() {
 	hub := websocket.NewHub()
 	go hub.Run()
 
-	// Create router
-	r := mux.NewRouter()
-
-	// Apply middleware
-	r.Use(middleware.LoggingMiddleware)
-	r.Use(middleware.RecoveryMiddleware)
-	r.Use(middleware.CORSMiddleware)
-	r.Use(middleware.DBMiddleware(db))
+	// Create main router
+	mainRouter := mux.NewRouter()
 
 	// Initialize handlers
 	h := handlers.NewHandler(db, hub)
 
-	// Register routes
-	registerRoutes(r, h)
+	// Apply CORS middleware to ALL routes first
+	mainRouter.Use(middleware.CORSMiddleware)
+
+	// Register WebSocket route BEFORE applying other middleware
+	mainRouter.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		// Add database to context
+		ctx := context.WithValue(r.Context(), middleware.DBKey, db)
+		r = r.WithContext(ctx)
+
+		// Apply WebSocket auth middleware
+		middleware.WebSocketAuthMiddleware(h.HandleWebSocket)(w, r)
+	}).Methods("GET")
+
+	// Create a subrouter for API routes with additional middleware
+	apiRouter := mainRouter.PathPrefix("/api").Subrouter()
+	apiRouter.Use(middleware.LoggingMiddleware)
+	apiRouter.Use(middleware.RecoveryMiddleware)
+	apiRouter.Use(middleware.DBMiddleware(db))
+
+	// Register other routes on the API subrouter
+	registerRoutes(apiRouter, h)
+
+	// Static file server for uploaded images (on main router)
+	fs := http.FileServer(http.Dir("./uploads"))
+	mainRouter.PathPrefix("/uploads/").Handler(middleware.CORSMiddleware(http.StripPrefix("/uploads/", fs)))
+
 	// Handle all OPTIONS requests so CORS middleware runs
-	r.PathPrefix("/").Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mainRouter.PathPrefix("/").Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
 	// Create server
 	srv := &http.Server{
 		Addr:         ":" + *port,
-		Handler:      r,
+		Handler:      mainRouter,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -101,9 +119,8 @@ func main() {
 	log.Println("Server exited properly")
 }
 
-func registerRoutes(r *mux.Router, h *handlers.Handler) {
-	// API routes
-	api := r.PathPrefix("/api").Subrouter()
+func registerRoutes(api *mux.Router, h *handlers.Handler) {
+	// API routes are already prefixed with /api
 
 	// Auth routes
 	auth := api.PathPrefix("/auth").Subrouter()
@@ -160,10 +177,11 @@ func registerRoutes(r *mux.Router, h *handlers.Handler) {
 	notifications.HandleFunc("/{id}/read", middleware.AuthMiddleware(h.MarkNotificationAsRead)).Methods("PUT")
 	notifications.HandleFunc("/read-all", middleware.AuthMiddleware(h.MarkAllNotificationsAsRead)).Methods("PUT")
 
-	// WebSocket route
-	r.HandleFunc("/ws", middleware.WebSocketAuthMiddleware(h.HandleWebSocket))
+	// Message routes
+	messages := api.PathPrefix("/messages").Subrouter()
+	messages.HandleFunc("", middleware.AuthMiddleware(h.SendMessage)).Methods("POST")
+	messages.HandleFunc("/{userId}", middleware.AuthMiddleware(h.GetMessages)).Methods("GET")
 
-	// Static file server for uploaded images
-	fs := http.FileServer(http.Dir("./uploads"))
-	r.PathPrefix("/uploads/").Handler(middleware.CORSMiddleware(http.StripPrefix("/uploads/", fs)))
+	// WebSocket route is registered separately before middleware to avoid hijacker issues
+	// Static file server is registered on the main router
 }
