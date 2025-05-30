@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 import { postAPI } from '@/utils/api';
+import { subscribeToNewPosts } from '@/utils/socket';
 import Button from '@/components/Button';
 import Post from '@/components/Post';
 import styles from '@/styles/Home.module.css';
@@ -22,6 +23,23 @@ export default function Home() {
       setIsLoading(false);
     }
   }, [isAuthenticated]);
+
+  // Real-time WebSocket event listeners
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Subscribe to new posts
+      const unsubscribeNewPosts = subscribeToNewPosts((data) => {
+        // Add new post to the beginning of the feed (only if it's not from the current user)
+        if (data.post && data.post.author.id !== user?.id) {
+          setPosts(prev => [data.post, ...prev]);
+        }
+      });
+
+      return () => {
+        unsubscribeNewPosts();
+      };
+    }
+  }, [isAuthenticated, user?.id]);
 
   const fetchFeed = async () => {
     try {
