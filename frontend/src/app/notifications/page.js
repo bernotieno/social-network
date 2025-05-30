@@ -13,16 +13,18 @@ export default function Notifications() {
   const {
     notifications,
     isLoading,
+    isRefreshing,
     fetchNotifications,
     markAsRead,
     markAllAsRead
   } = useNotifications();
 
   useEffect(() => {
-    // fetchNotifications();
-  }, []);
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   const getNotificationContent = (notification) => {
+    console.log("this is the notification", notification)
     switch (notification.type) {
       case 'follow_request':
         return (
@@ -185,7 +187,15 @@ export default function Notifications() {
     <ProtectedRoute>
       <div className={styles.notificationsContainer}>
         <div className={styles.notificationsHeader}>
-          <h1 className={styles.notificationsTitle}>Notifications</h1>
+          <div className={styles.titleContainer}>
+            <h1 className={styles.notificationsTitle}>Notifications</h1>
+            {isRefreshing && (
+              <div className={styles.refreshIndicator}>
+                <div className={styles.spinner}></div>
+                <span>Updating...</span>
+              </div>
+            )}
+          </div>
 
           {notifications && notifications.length > 0 && (
             <Button
