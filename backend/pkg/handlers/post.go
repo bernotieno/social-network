@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github.com/bernaotieno/social-network/backend/pkg/middleware"
 	"github.com/bernaotieno/social-network/backend/pkg/models"
 	"github.com/bernaotieno/social-network/backend/pkg/utils"
+	"github.com/bernaotieno/social-network/backend/pkg/websocket"
 	"github.com/gorilla/mux"
 )
 
@@ -92,6 +94,27 @@ func (h *Handler) CreatePost(w http.ResponseWriter, r *http.Request) {
 
 	// Add user to post for response
 	post.User = user
+
+	// Broadcast new post event via WebSocket (only for public posts)
+	if post.Visibility == models.PostVisibilityPublic {
+		newPostEvent := map[string]interface{}{
+			"post": post,
+		}
+
+		message := &websocket.Message{
+			Type:    "new_post",
+			Content: newPostEvent,
+		}
+
+		messageData, _ := json.Marshal(message)
+
+		// Broadcast to all connected clients
+		h.Hub.Broadcast <- &websocket.Broadcast{
+			RoomID:  "", // Broadcast to default room (all users)
+			Message: messageData,
+			Sender:  nil, // No specific sender for server events
+		}
+	}
 
 	utils.RespondWithSuccess(w, http.StatusCreated, "Post created successfully", map[string]interface{}{
 		"post": post,
@@ -368,6 +391,27 @@ func (h *Handler) LikePost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Broadcast like event via WebSocket
+	likeEvent := map[string]interface{}{
+		"postId": postID,
+		"userId": userID,
+		"action": "like",
+	}
+
+	message := &websocket.Message{
+		Type:    "post_like",
+		Content: likeEvent,
+	}
+
+	messageData, _ := json.Marshal(message)
+
+	// Broadcast to all connected clients
+	h.Hub.Broadcast <- &websocket.Broadcast{
+		RoomID:  "", // Broadcast to default room (all users)
+		Message: messageData,
+		Sender:  nil, // No specific sender for server events
+	}
+
 	utils.RespondWithSuccess(w, http.StatusOK, "Post liked successfully", nil)
 }
 
@@ -392,6 +436,27 @@ func (h *Handler) UnlikePost(w http.ResponseWriter, r *http.Request) {
 			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to unlike post")
 		}
 		return
+	}
+
+	// Broadcast unlike event via WebSocket
+	unlikeEvent := map[string]interface{}{
+		"postId": postID,
+		"userId": userID,
+		"action": "unlike",
+	}
+
+	message := &websocket.Message{
+		Type:    "post_like",
+		Content: unlikeEvent,
+	}
+
+	messageData, _ := json.Marshal(message)
+
+	// Broadcast to all connected clients
+	h.Hub.Broadcast <- &websocket.Broadcast{
+		RoomID:  "", // Broadcast to default room (all users)
+		Message: messageData,
+		Sender:  nil, // No specific sender for server events
 	}
 
 	utils.RespondWithSuccess(w, http.StatusOK, "Post unliked successfully", nil)
