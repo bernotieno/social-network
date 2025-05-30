@@ -11,7 +11,7 @@ import {
   updateUserData as updateStoredUserData
 } from '@/utils/auth';
 import { authAPI } from '@/utils/api';
-import { disconnectSocket } from '@/utils/socket';
+import { disconnectSocket, initializeSocket } from '@/utils/socket';
 
 // Create auth context
 const AuthContext = createContext({
@@ -36,8 +36,12 @@ export const AuthProvider = ({ children }) => {
       const userData = getUser();
       if (userData) {
         setUser(userData);
-        // TODO: Fix WebSocket authentication before enabling
-        // initializeSocket();
+        // Initialize WebSocket connection for authenticated users
+        try {
+          initializeSocket();
+        } catch (error) {
+          console.warn('Failed to initialize WebSocket:', error);
+        }
       }
       setIsLoading(false);
     };
@@ -60,8 +64,12 @@ export const AuthProvider = ({ children }) => {
       setAuth(token, user);
       setUser(user);
 
-      // TODO: Fix WebSocket authentication before enabling
-      // initializeSocket(token);
+      // Initialize WebSocket connection after successful login
+      try {
+        initializeSocket();
+      } catch (error) {
+        console.warn('Failed to initialize WebSocket after login:', error);
+      }
 
       return { success: true };
     } catch (error) {
@@ -85,8 +93,12 @@ export const AuthProvider = ({ children }) => {
       setAuth(token, user);
       setUser(user);
 
-      // TODO: Fix WebSocket authentication before enabling
-      // initializeSocket(token);
+      // Initialize WebSocket connection after successful registration
+      try {
+        initializeSocket();
+      } catch (error) {
+        console.warn('Failed to initialize WebSocket after registration:', error);
+      }
 
       return { success: true };
     } catch (error) {
