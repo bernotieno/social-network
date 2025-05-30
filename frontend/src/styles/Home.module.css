@@ -122,6 +122,21 @@
   padding: 1.5rem;
 }
 
+.feedHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #dddfe2;
+}
+
+.postsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
 .postsPlaceholder {
   min-height: 200px;
   display: flex;
@@ -137,12 +152,22 @@
   .heroTitle {
     font-size: 2rem;
   }
-  
+
   .heroSubtitle {
     font-size: 1.1rem;
   }
-  
+
   .featuresSection {
     grid-template-columns: 1fr;
+  }
+
+  .feedHeader {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .feedTitle {
+    text-align: center;
   }
 }

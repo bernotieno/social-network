@@ -28,6 +28,17 @@ a {
   text-decoration: none;
 }
 
+main {
+  padding-top: 60px; /* Height of the navbar */
+}
+
+/* Responsive adjustments for mobile */
+@media (max-width: 768px) {
+  main {
+    padding-top: 60px; /* Keep same padding on mobile */
+  }
+}
+
 /* Disable dark mode color scheme
 @media (prefers-color-scheme: dark) {
   html {

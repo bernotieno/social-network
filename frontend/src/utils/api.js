@@ -61,17 +61,44 @@ export const userAPI = {
         throw error;
       });
   },
-  uploadAvatar: (formData) => api.post('/users/avatar', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  }),
+  uploadAvatar: (formData) => {
+    console.log('Sending avatar upload request with formData:', formData);
+    return api.post('/users/avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    .then(response => {
+      console.log('Avatar upload success:', response);
+      return response;
+    })
+    .catch(error => {
+      console.error('Avatar upload error:', error.response || error);
+      throw error;
+    });
+  },
+  uploadCoverPhoto: (formData) => {
+    console.log('Sending cover photo upload request with formData:', formData);
+    return api.post('/users/cover', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    .then(response => {
+      console.log('Cover photo upload success:', response);
+      return response;
+    })
+    .catch(error => {
+      console.error('Cover photo upload error:', error.response || error);
+      throw error;
+    });
+  },
   getFollowers: (userId) => api.get(`/users/${userId}/followers`),
   getFollowing: (userId) => api.get(`/users/${userId}/following`),
   follow: (userId) => api.post(`/users/${userId}/follow`),
   unfollow: (userId) => api.delete(`/users/${userId}/follow`),
   getFollowRequests: () => api.get('/users/follow-requests'),
-  respondToFollowRequest: (requestId, accept) => 
+  respondToFollowRequest: (requestId, accept) =>
     api.put(`/users/follow-requests/${requestId}`, { accept }),
 };
 
@@ -79,8 +106,22 @@ export const userAPI = {
 export const postAPI = {
   getPosts: (userId) => api.get(`/posts/user/${userId}`),
   getFeed: (page = 1, limit = 10) => api.get(`/posts/feed?page=${page}&limit=${limit}`),
-  createPost: (postData) => api.post('/posts', postData),
-  updatePost: (postId, postData) => api.put(`/posts/${postId}`, postData),
+  createPost: (postData) => {
+    // For FormData, don't set Content-Type header - let browser set it with boundary
+    return api.post('/posts', postData, {
+      headers: {
+        'Content-Type': undefined, // This removes the default application/json header
+      },
+    });
+  },
+  updatePost: (postId, postData) => {
+    // For FormData, don't set Content-Type header - let browser set it with boundary
+    return api.put(`/posts/${postId}`, postData, {
+      headers: {
+        'Content-Type': undefined, // This removes the default application/json header
+      },
+    });
+  },
   deletePost: (postId) => api.delete(`/posts/${postId}`),
   likePost: (postId) => api.post(`/posts/${postId}/like`),
   unlikePost: (postId) => api.delete(`/posts/${postId}/like`),
@@ -99,7 +140,14 @@ export const groupAPI = {
   joinGroup: (groupId) => api.post(`/groups/${groupId}/join`),
   leaveGroup: (groupId) => api.delete(`/groups/${groupId}/join`),
   getGroupPosts: (groupId) => api.get(`/groups/${groupId}/posts`),
-  createGroupPost: (groupId, postData) => api.post(`/groups/${groupId}/posts`, postData),
+  createGroupPost: (groupId, postData) => {
+    // For FormData, don't set Content-Type header - let browser set it with boundary
+    return api.post(`/groups/${groupId}/posts`, postData, {
+      headers: {
+        'Content-Type': undefined, // This removes the default application/json header
+      },
+    });
+  },
   createGroupEvent: (groupId, eventData) => api.post(`/groups/${groupId}/events`, eventData),
   getGroupEvents: (groupId) => api.get(`/groups/${groupId}/events`),
   respondToEvent: (eventId, response) => api.post(`/groups/events/${eventId}/respond`, { response }),
