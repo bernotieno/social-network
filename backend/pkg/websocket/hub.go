@@ -73,8 +73,8 @@ func (h *Hub) Run() {
 
 			// Broadcast the message to all clients in the room
 			for client := range room {
-				// Don't send the message back to the sender
-				if client == broadcast.Sender {
+				// Don't send the message back to the sender (unless sender is nil, meaning it's from HTTP API)
+				if broadcast.Sender != nil && client == broadcast.Sender {
 					continue
 				}
 
