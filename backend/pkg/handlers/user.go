@@ -391,6 +391,9 @@ func (h *Handler) GetFollowers(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Get current user ID from context (if authenticated)
+	currentUserID, _ := middleware.GetUserID(r)
+
 	// Get followers
 	followers, err := h.FollowService.GetFollowers(userID, limit, offset)
 	if err != nil {
@@ -398,13 +401,38 @@ func (h *Handler) GetFollowers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Remove passwords from response
-	for _, user := range followers {
+	// Create response with follow status for each follower
+	followersWithStatus := make([]map[string]interface{}, len(followers))
+	for i, user := range followers {
 		user.Password = ""
+
+		userMap := map[string]interface{}{
+			"id":             user.ID,
+			"username":       user.Username,
+			"email":          user.Email,
+			"fullName":       user.FullName,
+			"bio":            user.Bio,
+			"profilePicture": user.ProfilePicture,
+			"coverPhoto":     user.CoverPhoto,
+			"isPrivate":      user.IsPrivate,
+			"createdAt":      user.CreatedAt,
+			"updatedAt":      user.UpdatedAt,
+			"isFollowing":    false, // Default to false
+		}
+
+		// Check if current user is following this follower
+		if currentUserID != "" && currentUserID != user.ID {
+			isFollowing, err := h.FollowService.IsFollowing(currentUserID, user.ID)
+			if err == nil {
+				userMap["isFollowing"] = isFollowing
+			}
+		}
+
+		followersWithStatus[i] = userMap
 	}
 
 	utils.RespondWithSuccess(w, http.StatusOK, "Followers retrieved successfully", map[string]interface{}{
-		"followers": followers,
+		"followers": followersWithStatus,
 	})
 }
 
@@ -437,6 +465,9 @@ func (h *Handler) GetFollowing(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Get current user ID from context (if authenticated)
+	currentUserID, _ := middleware.GetUserID(r)
+
 	// Get following
 	following, err := h.FollowService.GetFollowing(userID, limit, offset)
 	if err != nil {
@@ -444,13 +475,38 @@ func (h *Handler) GetFollowing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Remove passwords from response
-	for _, user := range following {
+	// Create response with follow status for each followed user
+	followingWithStatus := make([]map[string]interface{}, len(following))
+	for i, user := range following {
 		user.Password = ""
+
+		userMap := map[string]interface{}{
+			"id":             user.ID,
+			"username":       user.Username,
+			"email":          user.Email,
+			"fullName":       user.FullName,
+			"bio":            user.Bio,
+			"profilePicture": user.ProfilePicture,
+			"coverPhoto":     user.CoverPhoto,
+			"isPrivate":      user.IsPrivate,
+			"createdAt":      user.CreatedAt,
+			"updatedAt":      user.UpdatedAt,
+			"isFollowing":    true, // Default to true since this is the following list
+		}
+
+		// Check if current user is following this user (should be true for following list)
+		if currentUserID != "" && currentUserID != user.ID {
+			isFollowing, err := h.FollowService.IsFollowing(currentUserID, user.ID)
+			if err == nil {
+				userMap["isFollowing"] = isFollowing
+			}
+		}
+
+		followingWithStatus[i] = userMap
 	}
 
 	utils.RespondWithSuccess(w, http.StatusOK, "Following retrieved successfully", map[string]interface{}{
-		"following": following,
+		"following": followingWithStatus,
 	})
 }
 
