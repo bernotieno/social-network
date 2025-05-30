@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -49,9 +48,9 @@ func (h *Handler) CreatePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate visibility
-	if visibility != string(models.PostVisibilityPublic) && 
-	   visibility != string(models.PostVisibilityFollowers) && 
-	   visibility != string(models.PostVisibilityPrivate) {
+	if visibility != string(models.PostVisibilityPublic) &&
+		visibility != string(models.PostVisibilityFollowers) &&
+		visibility != string(models.PostVisibilityPrivate) {
 		visibility = string(models.PostVisibilityPublic)
 	}
 
@@ -133,11 +132,27 @@ func (h *Handler) UpdatePost(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	postID := vars["id"]
 
-	// Parse request body
-	var req UpdatePostRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.RespondWithError(w, http.StatusBadRequest, "Invalid request body")
+	// Parse multipart form
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		utils.RespondWithError(w, http.StatusBadRequest, "Failed to parse form")
 		return
+	}
+
+	// Get form values
+	content := r.FormValue("content")
+	visibility := r.FormValue("visibility")
+
+	// Validate content
+	if content == "" {
+		utils.RespondWithError(w, http.StatusBadRequest, "Content is required")
+		return
+	}
+
+	// Validate visibility
+	if visibility != string(models.PostVisibilityPublic) &&
+		visibility != string(models.PostVisibilityFollowers) &&
+		visibility != string(models.PostVisibilityPrivate) {
+		visibility = string(models.PostVisibilityPublic)
 	}
 
 	// Get post
@@ -154,14 +169,25 @@ func (h *Handler) UpdatePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update post fields
-	post.Content = req.Content
-	post.Visibility = req.Visibility
+	post.Content = content
+	post.Visibility = models.PostVisibility(visibility)
 
 	// Save changes
 	if err := h.PostService.Update(post); err != nil {
 		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to update post")
 		return
 	}
+
+	// Get user for response
+	user, err := h.UserService.GetByID(userID)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to get user")
+		return
+	}
+	user.Password = ""
+
+	// Add user to post for response
+	post.User = user
 
 	utils.RespondWithSuccess(w, http.StatusOK, "Post updated successfully", map[string]interface{}{
 		"post": post,
@@ -335,7 +361,7 @@ func (h *Handler) LikePost(w http.ResponseWriter, r *http.Request) {
 			Content:  "liked your post",
 			Data:     `{"postId":"` + postID + `"}`,
 		}
-		
+
 		if err := h.NotificationService.Create(notification); err != nil {
 			// Log error but don't fail the request
 			// TODO: Add proper logging
