@@ -587,6 +587,29 @@ func (h *Handler) GetFollowers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if the target user has a private profile
+	targetUser, err := h.UserService.GetByID(userID)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	// Check if current user is authorized to view followers
+	isOwnProfile := currentUserID == userID
+	if targetUser.IsPrivate && !isOwnProfile {
+		// For private profiles, check if current user is a follower
+		isFollowing, err := h.FollowService.IsFollowing(currentUserID, userID)
+		if err != nil {
+			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to check follow status")
+			return
+		}
+		
+		if !isFollowing {
+			utils.RespondWithError(w, http.StatusForbidden, "Not authorized to view followers of this private account")
+			return
+		}
+	}
+
 	// Get followers
 	followers, err := h.FollowService.GetFollowers(userID, limit, offset)
 	if err != nil {
@@ -663,6 +686,29 @@ func (h *Handler) GetFollowing(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		utils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
 		return
+	}
+
+	// Check if the target user has a private profile
+	targetUser, err := h.UserService.GetByID(userID)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	// Check if current user is authorized to view following list
+	isOwnProfile := currentUserID == userID
+	if targetUser.IsPrivate && !isOwnProfile {
+		// For private profiles, check if current user is a follower
+		isFollowing, err := h.FollowService.IsFollowing(currentUserID, userID)
+		if err != nil {
+			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to check follow status")
+			return
+		}
+		
+		if !isFollowing {
+			utils.RespondWithError(w, http.StatusForbidden, "Not authorized to view following list of this private account")
+			return
+		}
 	}
 
 	// Get following

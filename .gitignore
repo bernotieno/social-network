@@ -141,3 +141,6 @@ tmp/
 # Configuration files with sensitive data
 config.json
 secrets.json
+
+# Qodo's file configurations
+*.qodo
