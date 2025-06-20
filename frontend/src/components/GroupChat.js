@@ -5,6 +5,8 @@ import { initializeSocket, getSocket, subscribeToMessages, joinChatRoom, leaveCh
 import { getUserProfilePictureUrl, getFallbackAvatar } from '@/utils/images';
 import { useAlert } from '@/contexts/AlertContext';
 import styles from '@/styles/GroupChat.module.css';
+import emojis from "@/components/emojis";
+import stylesB from '@/styles/Chat.module.css'
 
 export default function GroupChat({ groupId, isVisible }) {
   const { showError } = useAlert();
@@ -151,7 +153,13 @@ export default function GroupChat({ groupId, isVisible }) {
     scrollToBottom();
   }, [messages]);
 
+
+  const emojiList = emojis();
+  const [showEmojis, setShowEmojis] = useState(false);
+
+
   if (!isVisible) return null;
+
 
   return (
     <div className={styles.groupChat}>
@@ -205,18 +213,21 @@ export default function GroupChat({ groupId, isVisible }) {
       </div>
 
       <form onSubmit={handleSendMessage} className={styles.messageForm}>
-        <div className={styles.emojiBar}>
-          {['😀', '😂', '😍', '🤔', '👍', '👎', '❤️', '🎉', '🔥', '💯'].map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              className={styles.emojiButton}
-              onClick={() => insertEmoji(emoji)}
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
+        {showEmojis && (
+            <div className={stylesB.emojiBarGroup}>
+              {emojiList.map((emoji,key) => (
+                  <button
+                      key={key}
+                      type="button"
+                      className={stylesB.emojiButton}
+                      onClick={() => insertEmoji(emoji)}
+                  >
+                    {emoji}
+                  </button>
+              ))}
+            </div>
+        )}
+
         <div className={styles.inputContainer}>
           <input
             type="text"
@@ -226,6 +237,16 @@ export default function GroupChat({ groupId, isVisible }) {
             className={styles.messageInput}
             disabled={isSending}
           />
+
+          {/*toggle emoji box*/}
+          <button
+              type="button"
+              onClick={() => setShowEmojis(!showEmojis)}
+              className={stylesB.emojiToggleButton}
+          >
+            {showEmojis ? 'hide emojis' : 'show more emojis'}
+          </button>
+
           <button
             type="submit"
             disabled={!newMessage.trim() || isSending}

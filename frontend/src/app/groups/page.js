@@ -146,7 +146,7 @@ export default function Groups() {
         ) : groups.length === 0 ? (
           <div className={styles.emptyGroups}>
             {searchQuery ? (
-              <p>No groups found matching "{searchQuery}"</p>
+              <p>No groups found matching ${searchQuery}</p>
             ) : activeTab === 'my-groups' ? (
               <>
                 <p>You haven&apos;t joined any groups yet</p>

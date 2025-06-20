@@ -349,12 +349,51 @@
 }
 
 .emojiBar {
-  display: flex;
-  gap: 0.25rem;
-  padding: 0.5rem 1rem;
-  border-bottom: 1px solid #dddfe2;
+  position: absolute;
+  bottom: 60px;
+  left: auto;
+  z-index: 999;
   background: #f8f9fa;
-  overflow-x: auto;
+  border: 1px solid #dddfe2;
+  border-radius: 8px;
+  padding: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  gap: 0.25rem;
+  width: 260px; /* Adjust to control how many emojis per row */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.emojiBarGroup {
+  position: absolute;
+  bottom: -275px;
+  z-index: 999;
+  background: #f8f9fa;
+  border: 1px solid #dddfe2;
+  border-radius: 8px;
+  padding: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  gap: 0.25rem;
+  width: 260px; /* Adjust to control how many emojis per row */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  left: auto;
+}
+
+.emojiToggleButton {
+  margin-left: auto; /* Pushes it to the right in a flex container */
+  background-color: #e0f3ff;
+  color: #10b981;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s ease;
+}
+
+.emojiToggleButton:hover {
+  background-color: #cce8ff;
 }
 
 .emojiButton {
