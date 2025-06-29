@@ -5,4 +5,4 @@ frontend:
 	cd frontend && npm run dev
 format:
 	cd backend && gofmt -w -s .
-	@echo files are formatted correctly
+	@echo "files are formatted correctly"

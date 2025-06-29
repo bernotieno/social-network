@@ -46,29 +46,29 @@ func (s *EventResponseService) Create(response *EventResponse) error {
 	// Check if a response already exists
 	var existingID string
 	err := s.DB.QueryRow("SELECT id FROM event_responses WHERE event_id = ? AND user_id = ?", response.EventID, response.UserID).Scan(&existingID)
-	
+
 	if err == nil {
 		// Update existing response
 		response.ID = existingID
 		response.UpdatedAt = time.Now()
-		
+
 		_, err := s.DB.Exec(`
 			UPDATE event_responses
 			SET response = ?, updated_at = ?
 			WHERE id = ?
 		`, response.Response, response.UpdatedAt, response.ID)
-		
+
 		if err != nil {
 			return fmt.Errorf("failed to update event response: %w", err)
 		}
-		
+
 		return nil
 	}
-	
+
 	if err != sql.ErrNoRows {
 		return fmt.Errorf("failed to check existing response: %w", err)
 	}
-	
+
 	// Create new response
 	response.ID = uuid.New().String()
 	now := time.Now()

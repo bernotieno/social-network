@@ -17,6 +17,25 @@ const (
 	GroupPrivacyPrivate GroupPrivacy = "private"
 )
 
+// GroupMemberRole represents the role of a user within a group
+type GroupMemberRole string
+
+const (
+	GroupMemberRoleCreator GroupMemberRole = "creator"
+	GroupMemberRoleAdmin   GroupMemberRole = "admin"
+	GroupMemberRoleMember  GroupMemberRole = "member"
+)
+
+// GroupMemberStatus represents the status of a user's membership in a group
+type GroupMemberStatus string
+
+const (
+	GroupMemberStatusPending  GroupMemberStatus = "pending"
+	GroupMemberStatusAccepted GroupMemberStatus = "accepted"
+	GroupMemberStatusRejected GroupMemberStatus = "rejected"
+	GroupMemberStatusInvited  GroupMemberStatus = "invited"
+)
+
 // Group represents a group
 type Group struct {
 	ID          string       `json:"id"`
@@ -31,6 +50,7 @@ type Group struct {
 	Creator       *User  `json:"creator,omitempty"`
 	MembersCount  int    `json:"membersCount,omitempty"`
 	IsJoined      bool   `json:"isJoined"`
+	IsAdmin       bool   `json:"isAdmin"`
 	RequestStatus string `json:"requestStatus,omitempty"` // pending, accepted, rejected, none
 }
 
@@ -59,6 +79,15 @@ func (s *GroupService) Create(group *Group) error {
 		return fmt.Errorf("failed to create group: %w", err)
 	}
 
+	// Add the creator as a member with 'creator' role and 'accepted' status
+	_, err = s.DB.Exec(`
+		INSERT INTO group_members (id, group_id, user_id, role, status, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, uuid.New().String(), group.ID, group.CreatorID, GroupMemberRoleCreator, GroupMemberStatusAccepted, now, now)
+	if err != nil {
+		return fmt.Errorf("failed to add group creator as member: %w", err)
+	}
+
 	return nil
 }
 
@@ -72,14 +101,15 @@ func (s *GroupService) GetByID(id string, currentUserID string) (*Group, error) 
 			u.id, u.username, u.full_name, u.profile_picture,
 			(SELECT COUNT(*) FROM group_members WHERE group_id = g.id AND status = 'accepted') as members_count,
 			(g.creator_id = ? OR (SELECT COUNT(*) FROM group_members WHERE group_id = g.id AND user_id = ? AND status = 'accepted') > 0) as is_joined,
-			(SELECT status FROM group_members WHERE group_id = g.id AND user_id = ? LIMIT 1) as request_status
+			(SELECT status FROM group_members WHERE group_id = g.id AND user_id = ? LIMIT 1) as request_status,
+			(SELECT COUNT(*) FROM group_members WHERE group_id = g.id AND user_id = ? AND (role = 'admin' OR role = 'creator')) > 0 as is_admin
 		FROM groups g
 		JOIN users u ON g.creator_id = u.id
 		WHERE g.id = ?
-	`, currentUserID, currentUserID, currentUserID, id).Scan(
+	`, currentUserID, currentUserID, currentUserID, currentUserID, id).Scan(
 		&group.ID, &group.Name, &group.Description, &group.CreatorID, &group.CoverPhoto, &group.Privacy, &group.CreatedAt, &group.UpdatedAt,
 		&group.Creator.ID, &group.Creator.Username, &group.Creator.FullName, &group.Creator.ProfilePicture,
-		&group.MembersCount, &group.IsJoined, &requestStatus,
+		&group.MembersCount, &group.IsJoined, &requestStatus, &group.IsAdmin,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {

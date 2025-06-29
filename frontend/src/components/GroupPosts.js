@@ -12,7 +12,7 @@ import FollowerSelector from '@/components/FollowerSelector';
 import SelectedFollowersTags from '@/components/SelectedFollowersTags';
 import styles from '@/styles/GroupPosts.module.css';
 
-export default function GroupPosts({ groupId, isGroupMember, isGroupAdmin }) {
+export default function GroupPosts({ groupId, isGroupMember, isGroupAdmin, groupCreatorId }) {
   const { user } = useAuth();
   const { showSuccess, showError } = useAlert();
   const [posts, setPosts] = useState([]);
@@ -276,13 +276,15 @@ export default function GroupPosts({ groupId, isGroupMember, isGroupAdmin }) {
           posts.map(post => (
             <div key={post.id} className={styles.postWrapper}>
               <Post
-                post={post}
-                onUpdate={handlePostUpdate}
-                onDelete={handlePostDelete}
-                isGroupPost={true}
-                groupId={groupId}
-                isGroupAdmin={isGroupAdmin}
-              />
+              key={post.id}
+              post={post}
+              onUpdate={handlePostUpdate}
+              onDelete={handlePostDelete}
+              isGroupPost={true}
+              groupId={groupId}
+              isGroupAdmin={isGroupAdmin}
+              groupCreatorId={groupCreatorId}
+            />
             </div>
           ))
         )}

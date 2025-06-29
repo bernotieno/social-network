@@ -25,6 +25,7 @@ const (
 type Post struct {
 	ID         string         `json:"id"`
 	UserID     string         `json:"userId"`
+	GroupID    sql.NullString `json:"groupId,omitempty"` // New field for group posts
 	Content    string         `json:"content"`
 	Image      string         `json:"image,omitempty"`
 	Visibility PostVisibility `json:"visibility"`
@@ -70,8 +71,9 @@ func (s *PostService) GetByID(id string, currentUserID string) (*Post, error) {
 	post := &Post{User: &User{}}
 	var image sql.NullString
 	var profilePicture sql.NullString
+	var groupID sql.NullString
 	err := s.DB.QueryRow(`
-		SELECT p.id, p.user_id, p.content, p.image, p.visibility, p.created_at, p.updated_at,
+		SELECT p.id, p.user_id, p.group_id, p.content, p.image, p.visibility, p.created_at, p.updated_at,
 			u.id, u.username, u.full_name, u.profile_picture,
 			(SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likes_count,
 			(SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments_count,
@@ -80,10 +82,14 @@ func (s *PostService) GetByID(id string, currentUserID string) (*Post, error) {
 		JOIN users u ON p.user_id = u.id
 		WHERE p.id = ?
 	`, currentUserID, id).Scan(
-		&post.ID, &post.UserID, &post.Content, &image, &post.Visibility, &post.CreatedAt, &post.UpdatedAt,
+		&post.ID, &post.UserID, &groupID, &post.Content, &image, &post.Visibility, &post.CreatedAt, &post.UpdatedAt,
 		&post.User.ID, &post.User.Username, &post.User.FullName, &profilePicture,
 		&post.LikesCount, &post.CommentsCount, &post.IsLiked,
 	)
+
+	if groupID.Valid {
+		post.GroupID = groupID
+	}
 
 	// Handle nullable fields
 	if image.Valid {

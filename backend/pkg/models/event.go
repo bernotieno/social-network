@@ -22,12 +22,12 @@ type Event struct {
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 	// Additional fields for API responses
-	Creator      *User  `json:"creator,omitempty"`
-	Group        *Group `json:"group,omitempty"`
-	GoingCount   int    `json:"goingCount,omitempty"`
-	MaybeCount   int    `json:"maybeCount,omitempty"`
-	DeclinedCount int   `json:"declinedCount,omitempty"`
-	UserResponse string `json:"userResponse,omitempty"`
+	Creator       *User  `json:"creator,omitempty"`
+	Group         *Group `json:"group,omitempty"`
+	GoingCount    int    `json:"goingCount,omitempty"`
+	MaybeCount    int    `json:"maybeCount,omitempty"`
+	DeclinedCount int    `json:"declinedCount,omitempty"`
+	UserResponse  string `json:"userResponse,omitempty"`
 }
 
 // EventService handles event-related operations

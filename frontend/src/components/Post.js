@@ -13,7 +13,7 @@ import Button from '@/components/Button';
 import { ConfirmModal, AlertModal } from '@/components/Modal';
 import styles from '@/styles/Post.module.css';
 
-const Post = ({ post, onDelete, onUpdate, isGroupPost = false, groupId = null, isGroupAdmin = false, priority = false }) => {
+const Post = ({ post, onDelete, onUpdate, isGroupPost = false, groupId = null, isGroupAdmin = false, groupCreatorId = null, priority = false }) => {
   const { user } = useAuth();
   const { showSuccess } = useAlert();
 
@@ -41,8 +41,44 @@ const Post = ({ post, onDelete, onUpdate, isGroupPost = false, groupId = null, i
   const [alertConfig, setAlertConfig] = useState({ type: 'info', message: '', title: 'Alert' });
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const isOwnPost = user?.id === post.author.id;
-  const canDeletePost = isOwnPost || (isGroupPost && isGroupAdmin);
+  /**
+   * @summary Determines if the current user can delete the post.
+   * @description A user can delete a post if:
+   * - They are the author of the post (`isOwnPost`).
+   * - It's a group post and the user is a group admin, but not the group creator.
+   * - It's a group post and the user is the group creator (can delete any post in their group).
+   * @summary Determines if the current user is the author of the post.
+   * @description This variable is true if the logged-in user's ID matches the post's author ID.
+   * @type {boolean}
+   */
+  const isOwnPost = user && user.id === post.userId;
+  const canDeletePost = () => {
+    if (!user || !post) return false;
+    
+    // No system-level admin permissions for post deletion
+    
+    // User can delete their own post
+    if (user.id === post.userId) return true;
+
+    // For group posts, check group-specific permissions
+    if (isGroupPost && groupId) {
+      // Only proceed if we have groupCreatorId
+      if (!groupCreatorId) {
+        return false;
+      }
+      
+      // Group creator can delete any post in their group
+      if (user.id === groupCreatorId) return true;
+      
+      // Group admin can delete member posts only, not creator posts
+      // Make sure the current user is NOT the group creator and the post author is NOT the group creator
+      if (isGroupAdmin && user.id !== groupCreatorId && post.userId !== groupCreatorId) {
+        return true;
+      }
+    }
+
+    return false;
+  };
   const canEditPost = isOwnPost; // Only post author can edit
 
   const handleLikeToggle = async () => {
@@ -208,6 +244,11 @@ const Post = ({ post, onDelete, onUpdate, isGroupPost = false, groupId = null, i
     setShowDeleteConfirm(true); // Show custom confirmation modal
   };
 
+  /**
+   * @summary Handles the deletion of a post.
+   * @description This function sets the `isDeleting` state to true, calls the appropriate API to delete the post (either `postAPI.deletePost` for regular posts or `groupAPI.deleteGroupPost` for group posts), and then calls the `onDelete` callback if the deletion is successful. It also handles error logging.
+   * @returns {void}
+   */
   const confirmDeletePost = async () => {
     try {
       setIsDeleting(true);
@@ -418,7 +459,7 @@ const Post = ({ post, onDelete, onUpdate, isGroupPost = false, groupId = null, i
           </div>
         </Link>
 
-        {(canEditPost || canDeletePost) && (
+        {(canEditPost || canDeletePost()) && (
           <div className={`${styles.postActions} post-dropdown`}>
             <button
               className={styles.dropdownToggle}
@@ -439,7 +480,7 @@ const Post = ({ post, onDelete, onUpdate, isGroupPost = false, groupId = null, i
                     ✏️ Edit Post
                   </button>
                 )}
-                {canDeletePost && (
+                {canDeletePost() && (
                   <button
                     className={styles.dropdownItem}
                     onClick={handleDeletePost}
@@ -672,7 +713,7 @@ const Post = ({ post, onDelete, onUpdate, isGroupPost = false, groupId = null, i
                           {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
                         </span>
 
-                        {(user?.id === comment.author.id || isOwnPost || (isGroupPost && isGroupAdmin)) && (
+                        {(user?.id === comment.author.id || isOwnPost || (isGroupPost && groupCreatorId && user?.id === groupCreatorId) || (isGroupPost && isGroupAdmin && user?.id !== groupCreatorId && comment.author.id !== groupCreatorId)) && (
                           <button
                             className={styles.deleteCommentButton}
                             onClick={() => handleDeleteComment(comment.id)}

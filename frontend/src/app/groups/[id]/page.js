@@ -143,7 +143,7 @@ export default function GroupPage() {
   };
 
   const isGroupAdmin = () => {
-    return group && user && group.creatorId === user.id;
+    return group && group.isAdmin;
   };
 
   const isGroupMember = () => {
@@ -290,10 +290,12 @@ export default function GroupPage() {
             {/* Tab Content */}
             <div className={styles.tabContent}>
               {activeTab === 'posts' && (
-                <GroupPosts
-                  groupId={group.id}
-                  isGroupMember={isGroupMember()}
-                  isGroupAdmin={isGroupAdmin()}
+                <GroupPosts 
+                  groupId={group.id} 
+                  isGroupMember={isGroupMember()} 
+                  isGroupAdmin={isGroupAdmin()} 
+                  groupCreatorId={group.creatorId}
+                  refreshGroupData={refreshGroupData} 
                 />
               )}
               {activeTab === 'events' && (

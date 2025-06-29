@@ -10,22 +10,6 @@ import (
 )
 
 // GroupMemberRole represents the role of a group member
-type GroupMemberRole string
-
-const (
-	GroupMemberRoleAdmin  GroupMemberRole = "admin"
-	GroupMemberRoleMember GroupMemberRole = "member"
-)
-
-// GroupMemberStatus represents the status of a group membership
-type GroupMemberStatus string
-
-const (
-	GroupMemberStatusPending  GroupMemberStatus = "pending"
-	GroupMemberStatusAccepted GroupMemberStatus = "accepted"
-	GroupMemberStatusRejected GroupMemberStatus = "rejected"
-	GroupMemberStatusInvited  GroupMemberStatus = "invited"
-)
 
 // GroupMember represents a member of a group
 type GroupMember struct {
@@ -158,6 +142,11 @@ func (s *GroupMemberService) PromoteToAdmin(groupID, memberID, callerID string) 
 	// Only the group creator can promote members
 	if creatorID != callerID {
 		return errors.New("only the group creator can promote members")
+	}
+
+	// Prevent promoting the group creator
+	if memberID == creatorID {
+		return errors.New("cannot promote the group creator")
 	}
 
 	// Update the member's role to admin

@@ -15,12 +15,12 @@ func RecoveryMiddleware(next http.Handler) http.Handler {
 			if err := recover(); err != nil {
 				// Log the error and stack trace
 				log.Printf("PANIC: %v\n%s", err, debug.Stack())
-				
+
 				// Return a 500 Internal Server Error
 				utils.RespondWithError(w, http.StatusInternalServerError, "Internal server error")
 			}
 		}()
-		
+
 		next.ServeHTTP(w, r)
 	})
 }

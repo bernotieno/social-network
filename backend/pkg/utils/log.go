@@ -25,7 +25,6 @@ func SetupLogFile() (*os.File, error) {
 	}
 	logFile = file
 
-
 	return logFile, nil
 }
 

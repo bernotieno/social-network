@@ -38,11 +38,10 @@ func main() {
 	db, err := sqlite.NewDB(*dbPath)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
-	}else{
-		utils.Logger("[INFO]: database created successfully",nil)
+	} else {
+		utils.Logger("[INFO]: database created successfully", nil)
 	}
 	defer db.Close()
-
 
 	// Run migrations
 	if err := sqlite.RunMigrations(*dbPath, *migrationsPath); err != nil {

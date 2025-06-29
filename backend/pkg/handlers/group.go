@@ -158,19 +158,6 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Add creator as admin
-	member := &models.GroupMember{
-		GroupID: group.ID,
-		UserID:  userID,
-		Role:    models.GroupMemberRoleAdmin,
-		Status:  models.GroupMemberStatusAccepted,
-	}
-
-	if err := h.GroupMemberService.Create(member); err != nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to add creator as admin")
-		return
-	}
-
 	// Get user for response
 	user, err := h.UserService.GetByID(userID)
 	if err != nil {
@@ -952,16 +939,16 @@ func (h *Handler) UpdateGroupEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user is the creator or a group admin
-	isCreator := existingEvent.CreatorID == userID
+	// Check if user is a group admin (includes group creator)
+	// Only group admins can update events, regardless of who created them
 	isAdmin, err := h.GroupMemberService.IsGroupAdmin(existingEvent.GroupID, userID)
 	if err != nil {
 		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to check admin status")
 		return
 	}
 
-	if !isCreator && !isAdmin {
-		utils.RespondWithError(w, http.StatusForbidden, "Only event creator or group admin can update this event")
+	if !isAdmin {
+		utils.RespondWithError(w, http.StatusForbidden, "Only group admins can update events")
 		return
 	}
 
@@ -1022,16 +1009,38 @@ func (h *Handler) DeleteGroupEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user is the creator or a group admin
-	isCreator := existingEvent.CreatorID == userID
-	isAdmin, err := h.GroupMemberService.IsGroupAdmin(existingEvent.GroupID, userID)
-	if err != nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to check admin status")
-		return
+	// Check authorization based on requirements:
+	// - Group creator can delete anyone's event in their group
+	// - Group admin can delete member events only (not creator events)
+	// - Regular member can delete only their own events
+
+	canDelete := false
+
+	// User can delete their own event
+	if existingEvent.CreatorID == userID {
+		canDelete = true
+	} else {
+		// For events created by others, check group permissions
+		group, err := h.GroupService.GetByID(existingEvent.GroupID, userID)
+		if err == nil {
+			if group.CreatorID == userID {
+				// Group creator can delete any event in their group
+				canDelete = true
+			} else {
+				// Check if user is a group admin
+				groupMember, memberErr := h.GroupMemberService.GetByGroupAndUser(group.ID, userID)
+				if memberErr == nil && groupMember.Role == models.GroupMemberRoleAdmin {
+					// Group admin can delete member events only, not creator events
+					if existingEvent.CreatorID != group.CreatorID {
+						canDelete = true
+					}
+				}
+			}
+		}
 	}
 
-	if !isCreator && !isAdmin {
-		utils.RespondWithError(w, http.StatusForbidden, "Only event creator or group admin can delete this event")
+	if !canDelete {
+		utils.RespondWithError(w, http.StatusForbidden, "Forbidden: You are not authorized to delete this event")
 		return
 	}
 
@@ -2085,29 +2094,17 @@ func (h *Handler) DeleteGroupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get the post to check ownership
-	post, err := h.PostService.GetByID(postID, userID)
-	if err != nil {
-		utils.RespondWithError(w, http.StatusNotFound, "Post not found")
-		return
-	}
-
-	// Check if user is the post author or a group admin
-	isAuthor := post.UserID == userID
-	isAdmin, err := h.GroupMemberService.IsGroupAdmin(groupID, userID)
-	if err != nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to check admin status")
-		return
-	}
-
-	if !isAuthor && !isAdmin {
-		utils.RespondWithError(w, http.StatusForbidden, "Only post author or group admin can delete this post")
-		return
-	}
-
-	// Delete the post
-	if err := h.PostService.Delete(postID, userID); err != nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to delete post")
+	// Delete the group post using GroupPostService which has proper permission logic
+	if err := h.GroupPostService.Delete(postID, userID); err != nil {
+		if err.Error() == "group post not found" {
+			utils.RespondWithError(w, http.StatusNotFound, "Post not found")
+		} else if err.Error() == "not authorized to delete this post" ||
+			err.Error() == "admin cannot delete the group creator's post" ||
+			err.Error() == "user is not an active member of this group" {
+			utils.RespondWithError(w, http.StatusForbidden, err.Error())
+		} else {
+			utils.RespondWithError(w, http.StatusInternalServerError, "Failed to delete post")
+		}
 		return
 	}
 
